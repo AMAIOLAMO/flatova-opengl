@@ -1,0 +1,23 @@
+#pragma once
+#ifndef _PRIMITIVES_H
+#define _PRIMITIVES_H
+
+#include <cglm/cglm.h>
+
+#include <utils.h>
+
+typedef struct Vertex_t {
+    vec3 pos;
+    vec3 normal;
+    vec2 tex_coord;
+} Vertex;
+
+Vertex* get_prim_cube_vertices(void);
+size_t  get_prim_cube_vertices_size(void);
+
+Vertex* get_prim_plane_vertices(void);
+size_t  get_prim_plane_vertices_size(void);
+
+void vertex_bind_load_buffers(Vertex *vertices, size_t total_byte_size, u32 vert_buf, u32 norm_buf, u32 tex_coord_buf);
+
+#endif // _PRIMITIVES_H

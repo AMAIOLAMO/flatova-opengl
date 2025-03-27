@@ -1,0 +1,6 @@
+subdir('nuklear')
+subdir('glad')
+subdir('stb')
+subdir('cxlist')
+subdir('hashmap')
+subdir('fast_obj')
