@@ -12,9 +12,6 @@ typedef struct Vertex_t {
     vec2 tex_coord;
 } Vertex;
 
-Vertex* get_prim_cube_vertices(void);
-size_t  get_prim_cube_vertices_size(void);
-
 Vertex* get_prim_plane_vertices(void);
 size_t  get_prim_plane_vertices_size(void);
 

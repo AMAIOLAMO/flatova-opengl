@@ -61,7 +61,7 @@ GLuint shader_get_uniform_loc(const Shader shader, const char *name) {
     return glGetUniformLocation(shader.program, name);
 }
 
-void shader_set_uniform_1i(const Shader shader, const char *name, float value) {
+void shader_set_uniform_1i(const Shader shader, const char *name, int value) {
     glUseProgram(shader.program);
     GLuint loc = glGetUniformLocation(shader.program, name);
     glUniform1i(loc, value);

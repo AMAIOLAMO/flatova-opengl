@@ -22,7 +22,7 @@ void shader_use(const Shader shader);
 
 GLuint shader_get_uniform_loc(const Shader shader, const char *name);
 
-void shader_set_uniform_1i(const Shader shader, const char *name, float value);
+void shader_set_uniform_1i(const Shader shader, const char *name, int value);
 
 void shader_set_uniform_1f(const Shader shader, const char *name, float value);
 

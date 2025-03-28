@@ -208,9 +208,39 @@ void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, ma
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene *p_scene, Resources resources) {
-    glEnable(GL_DEPTH_TEST);
 
+void render_skybox(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
+    Shader *p_skybox_shader = (Shader*)resources_find(resources, "shaders/skybox");
+    Model *p_skybox_model = (Model*)resources_find(resources, "primitives/skybox");
+    GLuint *p_skybox_tex = (GLuint*)resources_find(resources, "textures/skymap");
+
+    shader_use(*p_skybox_shader); {
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, *p_skybox_tex);
+
+        vertex_bind_load_buffers(
+            p_skybox_model->verts, p_skybox_model->verts_count,
+            pipeline.vert_buf, pipeline.norm_buf, pipeline.tex_coord_buf
+        );
+
+        shader_set_uniform_1i(*p_skybox_shader, "skymap", 0);
+
+        shader_set_uniform_mat4fv(*p_skybox_shader, "view_proj", view_proj_mat);
+
+        mat4 local_to_world_mat;
+        glm_mat4_identity(local_to_world_mat);
+        // TODO: we should not do this, the perspective calculation should be handled separately
+        // where near plane should not affect the skybox
+        glm_translate(local_to_world_mat, p_cam->pos);
+        glm_scale(local_to_world_mat, (vec3){p_cam->far, p_cam->far, p_cam->far});
+
+        shader_set_uniform_mat4fv(*p_skybox_shader, "model", local_to_world_mat);
+
+        glDrawArrays(GL_TRIANGLES, 0, p_skybox_model->verts_count);
+    }
+}
+
+void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene *p_scene, Resources resources) {
     glClearColor(
         p_scene->clear_color[0], p_scene->clear_color[1],
         p_scene->clear_color[2], p_scene->clear_color[3]
@@ -230,13 +260,16 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene 
     mat4 view_proj_mat;
     glm_mat4_mul(proj_mat, cam_mat, view_proj_mat);
 
+    glBindVertexArray(pipeline.vert_arr);
+    render_skybox(resources, pipeline, &cam, view_proj_mat);
+
+    glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
+    glEnable(GL_CULL_FACE);
+
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // DRAW CUBES
     const SceneObjects *p_objs = &p_scene->objs;
-
-    glEnable(GL_CULL_FACE);
 
     for(size_t i = 0; i < p_objs->len; i++) {
         const Shader *p_shader = p_objs->data[i].p_shader;
@@ -283,6 +316,7 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene 
     render_grid(resources, pipeline, &cam, view_proj_mat);
 
     glDisable(GL_BLEND);
+    glDisable(GL_DEPTH_TEST);
 }
 
 
@@ -368,8 +402,12 @@ void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_col
 void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Resources resources, Shader *p_default_shader) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        nk_layout_row_static(p_ctx, DPI_SCALEY(20), DPI_SCALEX(20), 1);
         const Model *p_model = resources_find(resources, "primitives/default_model");
+
+        nk_menubar_begin(p_ctx);
+
+        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 1);
+        nk_layout_row_push(p_ctx, DPI_SCALEY(25));
 
         if(nk_button_label(p_ctx, "+"))
             // TODO: the UI should not have the power to modify scene object list directly
@@ -381,6 +419,12 @@ void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Reso
                 .p_shader  = p_default_shader,
                 .p_model   = p_model
             } ));
+
+        nk_menubar_end(p_ctx);
+        nk_layout_row_end(p_ctx);
+
+
+        nk_layout_row_static(p_ctx, DPI_SCALEY(20), DPI_SCALEX(20), 1);
 
         for(size_t i = 0; i < p_objs->len; i++) {
             SceneObject *p_obj = &p_objs->data[i];
@@ -552,6 +596,9 @@ int main(void) {
     Model default_model = load_model_obj("vendor/primitive_models/test_complex.obj");
     resources_store(resources, "primitives/default_model", &default_model);
 
+    Model skybox = load_model_obj("vendor/primitive_models/skybox.obj");
+    resources_store(resources, "primitives/skybox", &skybox);
+
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -648,9 +695,30 @@ int main(void) {
 
     printf("Phong shader loaded\n");
 
-    resources_store(resources, "primitives/cube",  get_prim_cube_vertices());
+    Shader *p_skybox_shader = resources_load_shader_from_files(
+        resources, "shaders/skybox",
+        "./shaders/skybox.vs", "./shaders/skybox.fs"
+    );
+
+    if(p_skybox_shader == NULL) {
+        printf("Error: Failed to load skybox shaders!\n");
+        glfwTerminate();
+        return -1;
+    }
+
+    printf("Skybox shader loaded\n");
+
     resources_store(resources, "primitives/plane", get_prim_plane_vertices());
 
+    GLuint skymap_tex;
+    if(gl_try_load_texture2d_linear("vendor/skymaps/skymap_1.png", &skymap_tex, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE) == false) {
+        printf("Error: Failed to load skybox texture!\n");
+        glfwTerminate();
+        return -1;
+    }
+    resources_store(resources, "textures/skymap", &skymap_tex);
+
+    printf("Skybox texture loaded\n");
 
     // create buffers
     GLuint vert_arr_obj;
@@ -753,6 +821,9 @@ int main(void) {
     }
 
     editor_ctx_free(editor_ctx);
+
+    model_free(default_model);
+    model_free(skybox);
 
     scene_free(&scene);
     resources_free(resources);
