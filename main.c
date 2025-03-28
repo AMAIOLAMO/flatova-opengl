@@ -1,4 +1,3 @@
-#include "hashmap.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
@@ -29,6 +28,8 @@
 #include <shader.h>
 #include <model.h>
 #include <primitives.h>
+
+#include <editor.h>
 
 #include <resources.h>
 #include <primitive_resources.h>
@@ -141,7 +142,10 @@ void process_input(GLFWwindow *p_win, float dt) {
     if(glfwGetKey(p_win, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(p_win, true);
 
-    float cam_move_speed = cam_settings.default_fly_speed;
+    float cam_move_speed = cam_settings.default_fly_speed * cam_settings.speed_multiplier;
+
+    if(glfwGetKey(p_win, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
+        cam_move_speed *= 2;
 
     vec3 forward;
     camera_forward(cam, forward);
@@ -303,7 +307,7 @@ void g_scaling_set_dpi(float xscale, float yscale) {
 const nk_flags DEFAULT_NK_WIN_FLAGS = NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
     NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE;
 
-const nk_flags MAIN_NK_WIN_FLAGS = 0;
+const nk_flags EMPTY_NK_WIN_FLAGS = 0;
 
 void render_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float min, float max) {
     assert(min <= max && "the min value should always be smaller or equal to the max value");
@@ -322,6 +326,43 @@ void render_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, f
 }
 
 const float HUGE_VALUEF = 9999999999.0f;
+
+void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) {
+    if (nk_combo_begin_color(
+        p_ctx, nk_rgb_cf(*p_color),
+        nk_vec2(DPI_SCALEX(200), DPI_SCALEY(400))
+    )) {
+        enum color_mode {COL_RGB, COL_HSV};
+
+        static int col_mode = COL_RGB;
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(120), 1);
+        *p_color = nk_color_picker(p_ctx, *p_color, NK_RGBA);
+
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+        col_mode = nk_option_label(p_ctx, "RGB", col_mode == COL_RGB) ? COL_RGB : col_mode;
+        col_mode = nk_option_label(p_ctx, "HSV", col_mode == COL_HSV) ? COL_HSV : col_mode;
+
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+
+        if (col_mode == COL_RGB) {
+            p_color->r = nk_propertyf(p_ctx, "#R:", 0, p_color->r, 1.0f, 0.01f,0.005f);
+            p_color->g = nk_propertyf(p_ctx, "#G:", 0, p_color->g, 1.0f, 0.01f,0.005f);
+            p_color->b = nk_propertyf(p_ctx, "#B:", 0, p_color->b, 1.0f, 0.01f,0.005f);
+            p_color->a = nk_propertyf(p_ctx, "#A:", 0, p_color->a, 1.0f, 0.01f,0.005f);
+        } else {
+            float hsva[4];
+            nk_colorf_hsva_fv(hsva, *p_color);
+
+            hsva[0] = nk_propertyf(p_ctx, "#H:", 0, hsva[0], 1.0f, 0.01f,0.05f);
+            hsva[1] = nk_propertyf(p_ctx, "#S:", 0, hsva[1], 1.0f, 0.01f,0.05f);
+            hsva[2] = nk_propertyf(p_ctx, "#V:", 0, hsva[2], 1.0f, 0.01f,0.05f);
+            hsva[3] = nk_propertyf(p_ctx, "#A:", 0, hsva[3], 1.0f, 0.01f,0.05f);
+
+            *p_color = nk_hsva_colorfv(hsva);
+        }
+        nk_combo_end(p_ctx);
+    }
+}
 
 // hierarchy
 void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Resources resources, Shader *p_default_shader) {
@@ -351,42 +392,10 @@ void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Reso
             render_xyz_widget(p_ctx, "Rotation", p_obj->rot, -FL_TAU, FL_TAU);
             render_xyz_widget(p_ctx, "Scale", p_obj->scale, -HUGE_VALUEF, HUGE_VALUEF);
 
-
-
             struct nk_colorf nk_obj_color = { p_obj->color[0], p_obj->color[1], p_obj->color[2], 1.0f };
 
-            if (nk_combo_begin_color(
-                p_ctx, nk_rgb_cf(nk_obj_color),
-                nk_vec2(DPI_SCALEX(200), DPI_SCALEY(400))
-            )) {
-                enum color_mode {COL_RGB, COL_HSV};
-
-                static int col_mode = COL_RGB;
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(120), 1);
-                nk_obj_color = nk_color_picker(p_ctx, nk_obj_color, NK_RGBA);
-
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
-                col_mode = nk_option_label(p_ctx, "RGB", col_mode == COL_RGB) ? COL_RGB : col_mode;
-                col_mode = nk_option_label(p_ctx, "HSV", col_mode == COL_HSV) ? COL_HSV : col_mode;
-
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                
-                if (col_mode == COL_RGB) {
-                    nk_obj_color.r = nk_propertyf(p_ctx, "#R:", 0, nk_obj_color.r, 1.0f, 0.01f,0.005f);
-                    nk_obj_color.g = nk_propertyf(p_ctx, "#G:", 0, nk_obj_color.g, 1.0f, 0.01f,0.005f);
-                    nk_obj_color.b = nk_propertyf(p_ctx, "#B:", 0, nk_obj_color.b, 1.0f, 0.01f,0.005f);
-                    nk_obj_color.a = nk_propertyf(p_ctx, "#A:", 0, nk_obj_color.a, 1.0f, 0.01f,0.005f);
-                } else {
-                    float hsva[4];
-                    nk_colorf_hsva_fv(hsva, nk_obj_color);
-                    hsva[0] = nk_propertyf(p_ctx, "#H:", 0, hsva[0], 1.0f, 0.01f,0.05f);
-                    hsva[1] = nk_propertyf(p_ctx, "#S:", 0, hsva[1], 1.0f, 0.01f,0.05f);
-                    hsva[2] = nk_propertyf(p_ctx, "#V:", 0, hsva[2], 1.0f, 0.01f,0.05f);
-                    hsva[3] = nk_propertyf(p_ctx, "#A:", 0, hsva[3], 1.0f, 0.01f,0.05f);
-                    nk_obj_color = nk_hsva_colorfv(hsva);
-                }
-                nk_combo_end(p_ctx);
-            }
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+            render_combo_color_picker(p_ctx, &nk_obj_color);
 
             p_obj->color[0] = nk_obj_color.r;
             p_obj->color[1] = nk_obj_color.g;
@@ -399,7 +408,6 @@ void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Reso
 void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win) {
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
-
 
     // camera properties
     if (nk_begin(p_ctx, "Camera Properties", nk_rect(width - DPI_SCALEX(340 + 20), DPI_SCALEY(50),
@@ -415,17 +423,24 @@ void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win) {
         nk_property_float(p_ctx, "Field of view(rad):", 0.01f, &cam.fov, FL_PI, 0.1f, 0.01f);
         nk_property_float(p_ctx, "near plane(meter):", 0.01f, &cam.near, HUGE_VALUEF, 0.1f, 0.01f);
         nk_property_float(p_ctx, "far plane(meter):", 0.01f,  &cam.far,  HUGE_VALUEF, 0.1f, 0.01f);
+
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        nk_property_float(p_ctx, "speed multiplier:", 0.01f, &cam_settings.speed_multiplier, HUGE_VALUEF, 0.1f, 0.01f);
     }
     nk_end(p_ctx);
 }
 
-void render_editor_metrics(struct nk_context *p_ctx, float dt) {
-    if (nk_begin(p_ctx, "Editor Metrics", nk_rect(DPI_SCALEX(50 + 10 + 400), DPI_SCALEY(50),
-                                                   DPI_SCALEX(230), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
+void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt) {
+    int width, height;
+    glfwGetWindowSize(p_win, &width, &height);
+
+    if (nk_begin(p_ctx, "Editor Metrics", nk_rect(width - DPI_SCALEX(200 + 20), DPI_SCALEY(50),
+                                                   DPI_SCALEX(200), DPI_SCALEY(50)), EMPTY_NK_WIN_FLAGS)) {
         float fps = 1.0f / dt;
 
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-        nk_labelf(p_ctx, NK_TEXT_LEFT, "frames per second(FPS): %.2fs", fps);
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(15), 1);
+        nk_label(p_ctx, "Editor Metrics", NK_TEXT_CENTERED);
+        nk_labelf(p_ctx, NK_TEXT_CENTERED, "frames per second(FPS): %.2fs", fps);
     }
     nk_end(p_ctx);
 }
@@ -433,6 +448,11 @@ void render_editor_metrics(struct nk_context *p_ctx, float dt) {
 void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
     if (nk_begin(p_ctx, "Resource Viewer", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        if(nk_button_label(p_ctx, "load model")) {
+        
+        }
+        
         size_t iter = 0;
         Resource *p_resource = NULL;
 
@@ -457,60 +477,21 @@ void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene) {
         nk_bool nk_wireframe = p_scene->wireframe_mode;
         nk_checkbox_label(p_ctx, "wireframe", &nk_wireframe);
         p_scene->wireframe_mode = nk_wireframe;
+
+        struct nk_colorf nk_obj_color = {
+            p_scene->clear_color[0], p_scene->clear_color[1],
+            p_scene->clear_color[2], p_scene->clear_color[3]
+        };
+
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        render_combo_color_picker(p_ctx, &nk_obj_color);
+
+        p_scene->clear_color[0] = nk_obj_color.r;
+        p_scene->clear_color[1] = nk_obj_color.g;
+        p_scene->clear_color[2] = nk_obj_color.b;
+        p_scene->clear_color[3] = nk_obj_color.a;
     }
     nk_end(p_ctx);
-}
-
-typedef struct FlWidgetCtx_t {
-    const char *identifier;
-    b8 is_open;
-} FlWidgetCtx;
-
-typedef struct hashmap* FlEditorCtx;
-
-static int fl_widget_ctx_cmp(const void *a, const void *b, void *udata) {
-    (void) udata;
-    const FlWidgetCtx *ra = a;
-    const FlWidgetCtx *rb = b;
-
-    return strcmp(ra->identifier, rb->identifier);
-}
-
-static uint64_t fl_widget_ctx_hash(const void *item, uint64_t seed0, uint64_t seed1) {
-    const FlWidgetCtx *res = item;
-    // default hash
-    return hashmap_sip(res->identifier, strlen(res->identifier), seed0, seed1);
-}
-
-FlEditorCtx create_editor_ctx(void) {
-    return hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL);
-}
-
-void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier) {
-    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .is_open = false});
-}
-
-int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
-    return hashmap_iter(ctx, p_iter, (void**)pp_widget_ctx);
-}
-
-b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx, &(FlWidgetCtx){ .identifier = identifier });
-    if(!scene_widget)
-        return false;
-
-    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .is_open = is_open});
-    return true;
-}
-
-b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx, &(FlWidgetCtx){ .identifier = identifier });
-    
-    return scene_widget && scene_widget->is_open;
-}
-
-void editor_ctx_free(FlEditorCtx ctx) {
-    hashmap_free(ctx);
 }
 
 
@@ -518,7 +499,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorCt
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
 
-    if (nk_begin(p_ctx, "Main Menubar", nk_rect(0, 0, width, DPI_SCALEY(30)), MAIN_NK_WIN_FLAGS)) {
+    if (nk_begin(p_ctx, "Main Menubar", nk_rect(0, 0, width, DPI_SCALEY(30)), EMPTY_NK_WIN_FLAGS)) {
         nk_menubar_begin(p_ctx);
 
         nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 1);
@@ -557,8 +538,6 @@ void render_file_browser(struct nk_context *p_ctx) {
     }
     nk_end(p_ctx);
 }
-
-
 
 
 int main(void) {
@@ -729,7 +708,6 @@ int main(void) {
     FlEditorCtx editor_ctx = create_editor_ctx();
     editor_ctx_register_widget(editor_ctx, "scene hierarchy");
     editor_ctx_register_widget(editor_ctx, "camera properties");
-    editor_ctx_register_widget(editor_ctx, "editor metrics");
     editor_ctx_register_widget(editor_ctx, "resource viewer");
     editor_ctx_register_widget(editor_ctx, "scene settings");
     editor_ctx_register_widget(editor_ctx, "file browser");
@@ -751,9 +729,6 @@ int main(void) {
         if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win);
 
-        if(editor_ctx_is_widget_open(editor_ctx, "editor metrics"))
-            render_editor_metrics(nk_ctx, dt);
-
         if(editor_ctx_is_widget_open(editor_ctx, "resource viewer"))
             render_resource_viewer(nk_ctx, resources);
 
@@ -762,6 +737,8 @@ int main(void) {
 
         if(editor_ctx_is_widget_open(editor_ctx, "file browser"))
             render_file_browser(nk_ctx);
+
+        render_editor_metrics(nk_ctx, p_win, dt);
 
         // RENDERING
         render_scene_frame(p_win, pipe, &scene, resources);
