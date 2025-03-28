@@ -1,3 +1,4 @@
+#include "hashmap.h"
 #include <stdio.h>
 #include <unistd.h>
 #include <assert.h>
@@ -460,12 +461,60 @@ void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene) {
     nk_end(p_ctx);
 }
 
-typedef struct FlEditorState_t {
-    nk_bool scene_hierarchy_on, camera_properties_on,
-        editor_metrics_on, resource_viewer_on, scene_settings_on;
-} FlEditorState;
+typedef struct FlWidgetCtx_t {
+    const char *identifier;
+    b8 is_open;
+} FlWidgetCtx;
 
-void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorState *p_editor_state) {
+typedef struct hashmap* FlEditorCtx;
+
+static int fl_widget_ctx_cmp(const void *a, const void *b, void *udata) {
+    (void) udata;
+    const FlWidgetCtx *ra = a;
+    const FlWidgetCtx *rb = b;
+
+    return strcmp(ra->identifier, rb->identifier);
+}
+
+static uint64_t fl_widget_ctx_hash(const void *item, uint64_t seed0, uint64_t seed1) {
+    const FlWidgetCtx *res = item;
+    // default hash
+    return hashmap_sip(res->identifier, strlen(res->identifier), seed0, seed1);
+}
+
+FlEditorCtx create_editor_ctx(void) {
+    return hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL);
+}
+
+void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier) {
+    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .is_open = false});
+}
+
+int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
+    return hashmap_iter(ctx, p_iter, (void**)pp_widget_ctx);
+}
+
+b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open) {
+    const FlWidgetCtx *scene_widget = hashmap_get(ctx, &(FlWidgetCtx){ .identifier = identifier });
+    if(!scene_widget)
+        return false;
+
+    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .is_open = is_open});
+    return true;
+}
+
+b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier) {
+    const FlWidgetCtx *scene_widget = hashmap_get(ctx, &(FlWidgetCtx){ .identifier = identifier });
+    
+    return scene_widget && scene_widget->is_open;
+}
+
+void editor_ctx_free(FlEditorCtx ctx) {
+    hashmap_free(ctx);
+}
+
+
+void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorCtx *p_editor_ctx) {
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
 
@@ -483,11 +532,14 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorSt
             // and check their values based on their indices
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 1);
 
-            nk_checkbox_label(p_ctx, "scene hierarchy",   &p_editor_state->scene_hierarchy_on);
-            nk_checkbox_label(p_ctx, "editor metrics",    &p_editor_state->editor_metrics_on);
-            nk_checkbox_label(p_ctx, "scene settings",    &p_editor_state->scene_settings_on);
-            nk_checkbox_label(p_ctx, "camera properties", &p_editor_state->camera_properties_on);
-            nk_checkbox_label(p_ctx, "resource viewer",   &p_editor_state->resource_viewer_on);
+            size_t iter = 0;
+            FlWidgetCtx *p_widget_ctx = NULL;
+
+            while(editor_ctx_iter(*p_editor_ctx, &iter, &p_widget_ctx)) {
+                nk_bool is_open = p_widget_ctx->is_open;
+                nk_checkbox_label(p_ctx, p_widget_ctx->identifier, &is_open);
+                editor_ctx_set_widget_open(*p_editor_ctx, p_widget_ctx->identifier, is_open);
+            }
 
             nk_menu_end(p_ctx);
         }
@@ -497,6 +549,17 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorSt
     }
     nk_end(p_ctx);
 }
+
+void render_file_browser(struct nk_context *p_ctx) {
+    if (nk_begin(p_ctx, "File Browser",
+                 nk_rect(DPI_SCALEX(20), DPI_SCALEY(50), DPI_SCALEX(300), DPI_SCALEY(150)),
+                 DEFAULT_NK_WIN_FLAGS)) {
+    }
+    nk_end(p_ctx);
+}
+
+
+
 
 int main(void) {
     NFD_Init();
@@ -663,13 +726,13 @@ int main(void) {
 
     Scene scene = create_scene((vec4){0.0f, 0.0f, 0.0f, 1.0f});
 
-    FlEditorState editor_state = {
-        .scene_hierarchy_on = false,
-        .camera_properties_on = false,
-        .editor_metrics_on = false,
-        .resource_viewer_on = false,
-        .scene_settings_on = false
-    };
+    FlEditorCtx editor_ctx = create_editor_ctx();
+    editor_ctx_register_widget(editor_ctx, "scene hierarchy");
+    editor_ctx_register_widget(editor_ctx, "camera properties");
+    editor_ctx_register_widget(editor_ctx, "editor metrics");
+    editor_ctx_register_widget(editor_ctx, "resource viewer");
+    editor_ctx_register_widget(editor_ctx, "scene settings");
+    editor_ctx_register_widget(editor_ctx, "file browser");
 
     while(!glfwWindowShouldClose(p_win)) {
         float current_time = glfwGetTime();
@@ -680,22 +743,25 @@ int main(void) {
 
         nk_glfw3_new_frame(&nk_glfw);
 
-        render_main_menubar(nk_ctx, p_win, &editor_state);
+        render_main_menubar(nk_ctx, p_win, &editor_ctx);
 
-        if(editor_state.scene_hierarchy_on)
+        if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
             render_scene_hierarchy(nk_ctx, &scene.objs, resources, p_phong_shader);
 
-        if(editor_state.camera_properties_on)
+        if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win);
 
-        if(editor_state.editor_metrics_on)
+        if(editor_ctx_is_widget_open(editor_ctx, "editor metrics"))
             render_editor_metrics(nk_ctx, dt);
 
-        if(editor_state.resource_viewer_on)
+        if(editor_ctx_is_widget_open(editor_ctx, "resource viewer"))
             render_resource_viewer(nk_ctx, resources);
 
-        if(editor_state.scene_settings_on)
+        if(editor_ctx_is_widget_open(editor_ctx, "scene settings"))
             render_scene_settings(nk_ctx, &scene);
+
+        if(editor_ctx_is_widget_open(editor_ctx, "file browser"))
+            render_file_browser(nk_ctx);
 
         // RENDERING
         render_scene_frame(p_win, pipe, &scene, resources);
@@ -708,6 +774,8 @@ int main(void) {
         glfwSwapBuffers(p_win);
         glfwPollEvents();
     }
+
+    editor_ctx_free(editor_ctx);
 
     scene_free(&scene);
     resources_free(resources);
