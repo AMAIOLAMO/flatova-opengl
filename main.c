@@ -56,20 +56,32 @@ typedef struct SceneObject_t {
     const Model  *p_model;
 } SceneObject;
 
-
-// applies the position, rotation and scale on the given matrix
-void scene_obj_apply_transform(SceneObject *p_obj, mat4 applied_mat) {
-    glm_translate(applied_mat, p_obj->pos);
-
-    euler_radians_transform_xyz(p_obj->rot, applied_mat);
-
-    glm_scale(applied_mat, p_obj->scale);
-}
-
 typedef struct SceneObjects_t {
     size_t cap, len;
     SceneObject *data;
 } SceneObjects;
+
+typedef struct Transform_t {
+    vec3 pos, rot, scale;
+} Transform;
+
+typedef struct MeshRender_t {
+    const Model *p_model;
+    const Shader *p_shader;
+    vec3 albedo_color;
+} MeshRender;
+
+
+
+// applies the position, rotation and scale on the given matrix
+void transform_apply(Transform transform, mat4 applied_mat) {
+    glm_translate(applied_mat, transform.pos);
+
+    euler_radians_transform_xyz(transform.rot, applied_mat);
+
+    glm_scale(applied_mat, transform.scale);
+}
+
 
 typedef struct Pipeline_t {
     GLuint vert_buf;
@@ -172,19 +184,19 @@ typedef struct Scene_t {
     vec4 clear_color;
     b8 wireframe_mode;
 
-    SceneObjects objs;
+    FlEcsCtx *p_ecs_ctx;
+    /*SceneObjects objs;*/
 } Scene;
 
-Scene create_scene(const vec4 clear_color) {
+Scene create_scene(const vec4 clear_color, FlEcsCtx *p_ctx) {
     return (Scene){
         .clear_color = {clear_color[0], clear_color[1], clear_color[2], clear_color[3]},
         .wireframe_mode = false,
-        .objs = {0}
+        .p_ecs_ctx = p_ctx
     };
 }
 
 void scene_free(Scene *p_scene) {
-    list_free(&p_scene->objs);
 }
 
 void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
@@ -240,7 +252,8 @@ void render_skybox(Resources resources, const Pipeline pipeline, Camera *p_cam, 
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene *p_scene, Resources resources) {
+void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene *p_scene, Resources resources,
+                        FlComponent mesh_render_comp, FlComponent transform_comp) {
     glClearColor(
         p_scene->clear_color[0], p_scene->clear_color[1],
         p_scene->clear_color[2], p_scene->clear_color[3]
@@ -269,12 +282,18 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene 
 
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    const SceneObjects *p_objs = &p_scene->objs;
+    FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
-    for(size_t i = 0; i < p_objs->len; i++) {
-        const Shader *p_shader = p_objs->data[i].p_shader;
-        const Model *p_model = p_objs->data[i].p_model;
-        SceneObject *p_obj = &p_objs->data[i];
+    size_t iter = 0;
+    MeshRender *p_mesh_render = NULL;
+    FlEntity entity;
+
+    while(fl_ecs_query(p_ecs_ctx, &iter, mesh_render_comp, sizeof(MeshRender), &entity, (void**)&p_mesh_render)) {
+        const Shader *p_shader = p_mesh_render->p_shader;
+        const Model *p_model = p_mesh_render->p_model;
+
+        Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp, sizeof(Transform));
+        assert(p_transform);
 
         vertex_bind_load_buffers(
             p_model->verts,
@@ -283,19 +302,19 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene 
         );
 
         shader_use(*p_shader); {
-            shader_set_uniform_3f(*p_shader, "albedo_color", p_obj->color);
+            shader_set_uniform_3f(*p_shader, "albedo_color", p_mesh_render->albedo_color);
             shader_set_uniform_3f(*p_shader, "cam_pos", cam.pos);
             shader_set_uniform_mat4fv(*p_shader, "view_proj", view_proj_mat);
 
             mat4 local_to_world_mat;
             glm_mat4_identity(local_to_world_mat);
-            scene_obj_apply_transform(p_obj, local_to_world_mat);
+            transform_apply(*p_transform, local_to_world_mat);
 
             shader_set_uniform_mat4fv(*p_shader, "model", local_to_world_mat);
 
             mat4 normal_mat;
             glm_mat4_identity(normal_mat);
-            euler_radians_transform_xyz(p_obj->rot, normal_mat);
+            euler_radians_transform_xyz(p_transform->rot, normal_mat);
 
             shader_set_uniform_mat4fv(*p_shader, "norm_mat", normal_mat);
         }
@@ -399,7 +418,8 @@ void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_col
 }
 
 // hierarchy
-void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Resources resources, Shader *p_default_shader) {
+void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlComponent transform_id, FlComponent mesh_render_id,
+                            Resources resources, Shader *p_default_shader) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         const Model *p_model = resources_find(resources, "primitives/default_model");
@@ -409,41 +429,59 @@ void render_scene_hierarchy(struct nk_context *p_ctx, SceneObjects *p_objs, Reso
         nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 1);
         nk_layout_row_push(p_ctx, DPI_SCALEY(25));
 
-        if(nk_button_label(p_ctx, "+"))
+        FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
+
+        if(nk_button_label(p_ctx, "+")) {
             // TODO: the UI should not have the power to modify scene object list directly
-            list_append(p_objs, ( (SceneObject) {
-                .pos       = {0},
-                .rot       = {0, 0, 0},
-                .scale     = {1, 1, 1},
-                .color     = {1, 1, 1},
-                .p_shader  = p_default_shader,
-                .p_model   = p_model
-            } ));
+            fl_ecs_entity_add(p_ecs_ctx);
+            const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
+
+            Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id, sizeof(Transform));
+            *p_transform = (Transform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
+
+            MeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id, sizeof(MeshRender));
+
+            fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
+            fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
+
+            *p_render = (MeshRender){ .p_model = p_model, .p_shader = p_default_shader, .albedo_color = {1.0f, 1.0f, 1.0f} };
+        }
+            /*list_append(p_objs, ( (SceneObject) {*/
+            /*    .pos       = {0},*/
+            /*    .rot       = {0, 0, 0},*/
+            /*    .scale     = {1, 1, 1},*/
+            /*    .color     = {1, 1, 1},*/
+            /*    .p_shader  = p_default_shader,*/
+            /*    .p_model   = p_model*/
+            /*} ));*/
 
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);
 
 
         nk_layout_row_static(p_ctx, DPI_SCALEY(20), DPI_SCALEX(20), 1);
+        
+        size_t iter = 0;
+        FlEntity entity;
 
-        for(size_t i = 0; i < p_objs->len; i++) {
-            SceneObject *p_obj = &p_objs->data[i];
+        Transform *p_transform;
 
+        while(fl_ecs_query(p_ecs_ctx, &iter, transform_id, sizeof(Transform), &entity, (void**)&p_transform)) {
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] object:", i);
-            render_xyz_widget(p_ctx, "Position", p_obj->pos, -HUGE_VALUEF, HUGE_VALUEF);
+            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] object:", entity);
+            render_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
 
-            render_xyz_widget(p_ctx, "Rotation", p_obj->rot, -FL_TAU, FL_TAU);
-            render_xyz_widget(p_ctx, "Scale", p_obj->scale, -HUGE_VALUEF, HUGE_VALUEF);
+            render_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
+            render_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
 
-            struct nk_colorf nk_obj_color = { p_obj->color[0], p_obj->color[1], p_obj->color[2], 1.0f };
-
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-            render_combo_color_picker(p_ctx, &nk_obj_color);
-
-            p_obj->color[0] = nk_obj_color.r;
-            p_obj->color[1] = nk_obj_color.g;
-            p_obj->color[2] = nk_obj_color.b;
+            /*struct nk_colorf nk_obj_color = { p_obj->color[0], p_obj->color[1], p_obj->color[2], 1.0f };*/
+            /**/
+            /*nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);*/
+            /*render_combo_color_picker(p_ctx, &nk_obj_color);*/
+            /**/
+            /*p_obj->color[0] = nk_obj_color.r;*/
+            /*p_obj->color[1] = nk_obj_color.g;*/
+            /*p_obj->color[2] = nk_obj_color.b;*/
         }
     }
     nk_end(p_ctx);
@@ -581,10 +619,6 @@ void render_file_browser(struct nk_context *p_ctx) {
     nk_end(p_ctx);
 }
 
-typedef struct Transform_t {
-    vec3 pos, rot, scale;
-} Transform;
-
 int main(void) {
     const size_t TBL_ENTITY_COUNT = 20;
     const size_t TBL_COMPONENT_COUNT = 20;
@@ -595,25 +629,9 @@ int main(void) {
         &ecs_ctx, sizeof(Transform)
     );
 
-    for(size_t i = 0; i < 10; i++) {
-        const FlEntity entity = fl_ecs_entity_add(&ecs_ctx);
-
-        Transform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, entity, TRANSFORM_ID, sizeof(Transform));
-        *p_transform = (Transform){.pos = {1.0f, i, 3.0f}};
-    }
-
-    for(size_t i = 0; i < ecs_ctx.entity_count; i++)
-        fl_ecs_entity_activate_component(&ecs_ctx, i, TRANSFORM_ID, true);
-
-    size_t iter = 0;
-    FlEntity entity;
-    Transform *p_transform;
-
-    while(fl_ecs_query(&ecs_ctx, &iter, TRANSFORM_ID, sizeof(Transform), &entity, (void**)&p_transform)) {
-        printf("found transform! with position: ");
-        glm_vec3_print(p_transform->pos, stdout);
-    }
-
+    const FlComponent MESH_RENDER_ID = fl_ecs_add_component(
+        &ecs_ctx, sizeof(MeshRender)
+    );
 
 
     NFD_Init();
@@ -802,7 +820,10 @@ int main(void) {
     float dt = glfwGetTime();
     float prev_time = glfwGetTime();
 
-    Scene scene = create_scene((vec4){0.0f, 0.0f, 0.0f, 1.0f});
+    Scene scene = create_scene((vec4){0.0f, 0.0f, 0.0f, 1.0f}, &ecs_ctx);
+
+    /*for(size_t i = 0; i < 10; i++) {*/
+    /*}*/
 
     FlEditorCtx editor_ctx = create_editor_ctx();
     editor_ctx_register_widget(editor_ctx, "scene hierarchy");
@@ -823,7 +844,7 @@ int main(void) {
         render_main_menubar(nk_ctx, p_win, &editor_ctx);
 
         if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
-            render_scene_hierarchy(nk_ctx, &scene.objs, resources, p_phong_shader);
+            render_scene_hierarchy(nk_ctx, &scene, TRANSFORM_ID, MESH_RENDER_ID, resources, p_phong_shader);
 
         if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win);
@@ -840,7 +861,7 @@ int main(void) {
         render_editor_metrics(nk_ctx, p_win, dt);
 
         // RENDERING
-        render_scene_frame(p_win, pipe, &scene, resources);
+        render_scene_frame(p_win, pipe, &scene, resources, MESH_RENDER_ID, TRANSFORM_ID);
 
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;
