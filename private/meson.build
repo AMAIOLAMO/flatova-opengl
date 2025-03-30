@@ -6,7 +6,8 @@ srcs += files(
   'primitives.c',
   'utils.c',
   'model.c',
-  'editor.c'
+  'editor.c',
+  'fl_ecs.c'
 )
 
 subdir('impls')

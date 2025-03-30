@@ -30,6 +30,7 @@
 #include <primitives.h>
 
 #include <editor.h>
+#include <fl_ecs.h>
 
 #include <resources.h>
 #include <primitive_resources.h>
@@ -45,7 +46,6 @@ void framebuffer_size_callback(GLFWwindow* p_win, int width, int height) {
     glViewport(0, 0, width, height);
     printf("Detected frame buffer size change\n");
 }
-
 typedef struct SceneObject_t {
     vec3 pos;
     vec3 rot;
@@ -553,8 +553,6 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorCt
             p_ctx, "window", NK_TEXT_LEFT,
             nk_vec2(DPI_SCALEX(140), DPI_SCALEY(200))
         )) {
-            // TODO: the editor state, instead of having one boolean for each, we can instead register for each UI
-            // and check their values based on their indices
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 1);
 
             size_t iter = 0;
@@ -583,8 +581,41 @@ void render_file_browser(struct nk_context *p_ctx) {
     nk_end(p_ctx);
 }
 
+typedef struct Transform_t {
+    vec3 pos, rot, scale;
+} Transform;
 
 int main(void) {
+    const size_t TBL_ENTITY_COUNT = 20;
+    const size_t TBL_COMPONENT_COUNT = 20;
+
+    FlEcsCtx ecs_ctx = fl_ecs_ctx_create(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
+
+    const FlComponent TRANSFORM_ID = fl_ecs_add_component(
+        &ecs_ctx, sizeof(Transform)
+    );
+
+    for(size_t i = 0; i < 10; i++) {
+        const FlEntity entity = fl_ecs_entity_add(&ecs_ctx);
+
+        Transform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, entity, TRANSFORM_ID, sizeof(Transform));
+        *p_transform = (Transform){.pos = {1.0f, i, 3.0f}};
+    }
+
+    for(size_t i = 0; i < ecs_ctx.entity_count; i++)
+        fl_ecs_entity_activate_component(&ecs_ctx, i, TRANSFORM_ID, true);
+
+    size_t iter = 0;
+    FlEntity entity;
+    Transform *p_transform;
+
+    while(fl_ecs_query(&ecs_ctx, &iter, TRANSFORM_ID, sizeof(Transform), &entity, (void**)&p_transform)) {
+        printf("found transform! with position: ");
+        glm_vec3_print(p_transform->pos, stdout);
+    }
+
+
+
     NFD_Init();
 
     Resources resources = resources_create();
@@ -656,7 +687,7 @@ int main(void) {
     }
 
 
-    // LOAD SHADERS
+    // LOAD all shaders in vendor
     if( resources_load_shader_from_files(
         resources, "shaders/grid",
         "./shaders/grid.vs", "./shaders/grid.fs"
@@ -821,6 +852,7 @@ int main(void) {
     }
 
     editor_ctx_free(editor_ctx);
+    fl_ecs_ctx_free(&ecs_ctx);
 
     model_free(default_model);
     model_free(skybox);

@@ -7,7 +7,8 @@
 
 
 typedef unsigned char b8;
-typedef unsigned int u32;
+typedef unsigned int  u32;
+typedef unsigned long u64;
 
 #define arr_size(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 
