@@ -21,6 +21,8 @@ typedef struct FlEcsCtx_t {
 
     size_t g_component_id;
     size_t component_cap;
+
+    size_t *component_byte_sizes;
 } FlEcsCtx;
 
 FlEcsCtx fl_ecs_ctx_create(FlEntity entity_cap, FlComponent component_cap);
@@ -29,15 +31,13 @@ void fl_ecs_ctx_free(FlEcsCtx *p_ctx);
 
 FlComponent fl_ecs_add_component(FlEcsCtx *p_ctx, size_t component_bytes_size);
 
-void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component_id, b8 active);
+void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component, b8 active);
 
-b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter,
-                FlComponent component_id, size_t component_byte_size, FlEntity *p_entity, void **p_component_data);
+b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity, FlComponent *components, size_t components_size);
 
 FlEntity fl_ecs_entity_add(FlEcsCtx *p_ctx);
 
-void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity,
-                                       FlComponent component, size_t component_byte_size);
+void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component);
 
 
 #endif // _FL_ECS_H

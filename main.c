@@ -185,7 +185,6 @@ typedef struct Scene_t {
     b8 wireframe_mode;
 
     FlEcsCtx *p_ecs_ctx;
-    /*SceneObjects objs;*/
 } Scene;
 
 Scene create_scene(const vec4 clear_color, FlEcsCtx *p_ctx) {
@@ -197,6 +196,7 @@ Scene create_scene(const vec4 clear_color, FlEcsCtx *p_ctx) {
 }
 
 void scene_free(Scene *p_scene) {
+    (void) p_scene;
 }
 
 void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
@@ -285,15 +285,22 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene 
     FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
     size_t iter = 0;
-    MeshRender *p_mesh_render = NULL;
     FlEntity entity;
 
-    while(fl_ecs_query(p_ecs_ctx, &iter, mesh_render_comp, sizeof(MeshRender), &entity, (void**)&p_mesh_render)) {
-        const Shader *p_shader = p_mesh_render->p_shader;
-        const Model *p_model = p_mesh_render->p_model;
+    FlComponent query_components[] = {
+        transform_comp, mesh_render_comp
+    };
 
-        Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp, sizeof(Transform));
+    while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
+        MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_comp);
+        Transform *p_transform    = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp);
+
+        assert(p_mesh_render);
         assert(p_transform);
+
+        const Shader *p_shader = p_mesh_render->p_shader;
+        const Model *p_model   = p_mesh_render->p_model;
+
 
         vertex_bind_load_buffers(
             p_model->verts,
@@ -426,49 +433,52 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlComponen
 
         nk_menubar_begin(p_ctx);
 
-        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 1);
-        nk_layout_row_push(p_ctx, DPI_SCALEY(25));
+        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 3);
+        nk_layout_row_push(p_ctx, DPI_SCALEX(25));
 
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
         if(nk_button_label(p_ctx, "+")) {
-            // TODO: the UI should not have the power to modify scene object list directly
-            fl_ecs_entity_add(p_ecs_ctx);
+            // TODO: the UI should not have the power to modify entities directly
             const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
 
-            Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id, sizeof(Transform));
+            Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
             *p_transform = (Transform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
 
-            MeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id, sizeof(MeshRender));
+            MeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id);
 
             fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
             fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
 
             *p_render = (MeshRender){ .p_model = p_model, .p_shader = p_default_shader, .albedo_color = {1.0f, 1.0f, 1.0f} };
         }
-            /*list_append(p_objs, ( (SceneObject) {*/
-            /*    .pos       = {0},*/
-            /*    .rot       = {0, 0, 0},*/
-            /*    .scale     = {1, 1, 1},*/
-            /*    .color     = {1, 1, 1},*/
-            /*    .p_shader  = p_default_shader,*/
-            /*    .p_model   = p_model*/
-            /*} ));*/
+
+        nk_layout_row_push(p_ctx, DPI_SCALEX(120));
+
+        nk_labelf(p_ctx, NK_TEXT_CENTERED, "Entity Count: %zu / %zu", p_ecs_ctx->entity_count, p_ecs_ctx->entity_cap);
+        nk_labelf(p_ctx, NK_TEXT_CENTERED, "Entity Global Id: %zu", p_ecs_ctx->g_entity_id);
 
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);
 
 
-        nk_layout_row_static(p_ctx, DPI_SCALEY(20), DPI_SCALEX(20), 1);
         
         size_t iter = 0;
         FlEntity entity;
 
         Transform *p_transform;
 
-        while(fl_ecs_query(p_ecs_ctx, &iter, transform_id, sizeof(Transform), &entity, (void**)&p_transform)) {
+        FlComponent query_components[] = {
+            transform_id
+        };
+
+        while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
+            p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
+
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] object:", entity);
+            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] entity:", entity);
+
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
             render_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
 
             render_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
@@ -620,8 +630,8 @@ void render_file_browser(struct nk_context *p_ctx) {
 }
 
 int main(void) {
-    const size_t TBL_ENTITY_COUNT = 20;
-    const size_t TBL_COMPONENT_COUNT = 20;
+    const size_t TBL_ENTITY_COUNT = 100;
+    const size_t TBL_COMPONENT_COUNT = 32;
 
     FlEcsCtx ecs_ctx = fl_ecs_ctx_create(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
 
@@ -821,9 +831,6 @@ int main(void) {
     float prev_time = glfwGetTime();
 
     Scene scene = create_scene((vec4){0.0f, 0.0f, 0.0f, 1.0f}, &ecs_ctx);
-
-    /*for(size_t i = 0; i < 10; i++) {*/
-    /*}*/
 
     FlEditorCtx editor_ctx = create_editor_ctx();
     editor_ctx_register_widget(editor_ctx, "scene hierarchy");

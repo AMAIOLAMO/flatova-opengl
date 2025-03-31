@@ -1,6 +1,7 @@
 #include <assert.h>
 #include <fl_ecs.h>
 
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -37,37 +38,51 @@ FlEcsCtx fl_ecs_ctx_create(FlEntity entity_cap, FlComponent component_cap) {
 
         .entity_count = 0,
         .g_entity_id = 0,
-        .g_component_id = 0
+        .g_component_id = 0,
+        .component_byte_sizes = malloc(sizeof(size_t) * component_cap)
     };
 }
 
 void fl_ecs_ctx_free(FlEcsCtx *p_ctx) {
     fl_ecs_data_lists_free(p_ctx->data_lists, p_ctx->component_cap);
     fl_ecs_table_free(p_ctx->table);
+    free(p_ctx->component_byte_sizes);
 }
+
+static size_t fl_ecs_get_table_idx(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component) {
+    return component * p_ctx->entity_cap + entity;
+}
+
 
 FlComponent fl_ecs_add_component(FlEcsCtx *p_ctx, size_t component_bytes_size) {
     const FlComponent COMP_ID = p_ctx->g_component_id++;
 
-    p_ctx->data_lists[COMP_ID] = malloc(component_bytes_size * p_ctx->entity_cap);
+    p_ctx->data_lists[COMP_ID]           = malloc(component_bytes_size * p_ctx->entity_cap);
+    p_ctx->component_byte_sizes[COMP_ID] = component_bytes_size;
 
     return COMP_ID;
 }
 
-void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component_id, b8 active) {
-    p_ctx->table[component_id * p_ctx->component_cap + entity] = active;
+void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component, b8 active) {
+    p_ctx->table[fl_ecs_get_table_idx(p_ctx, entity, component)] = active;
 }
 
-b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter,
-                FlComponent component_id, size_t component_byte_size, FlEntity *p_entity, void **p_component_data) {
+b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity, FlComponent *components, size_t components_size) {
+    // checking each and individual entity
+
     while(*p_iter < p_ctx->entity_cap) {
-        if(p_ctx->table[component_id * p_ctx->component_cap + *p_iter]) {
+        b8 has_all_components = true;
+
+        // check if the current component has all the required components
+        for(size_t i_comp = 0; i_comp < components_size; i_comp++) {
+            if(!p_ctx->table[fl_ecs_get_table_idx(p_ctx, *p_iter, components[i_comp])]) {
+                has_all_components = false;
+                break;
+            }
+        }
+
+        if(has_all_components) {
             *p_entity = *p_iter; // TODO: coincidence? should we simplify this?
-
-            b8 *data_list = p_ctx->data_lists[component_id];
-
-            if(data_list != NULL)
-                *p_component_data = &data_list[component_byte_size * (*p_entity)];
 
             *p_iter += 1;
             return true;
@@ -86,9 +101,12 @@ FlEntity fl_ecs_entity_add(FlEcsCtx *p_ctx) {
     return p_ctx->g_entity_id++;
 }
 
-void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component, size_t component_byte_size) {
+void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component) {
     b8 *data_list = (b8*)p_ctx->data_lists[component];
 
+    assert(data_list);
+
+    const size_t component_byte_size = p_ctx->component_byte_sizes[component];
     return &data_list[component_byte_size * entity];
 }
 
