@@ -49,7 +49,7 @@ void fl_ecs_ctx_free(FlEcsCtx *p_ctx) {
     free(p_ctx->component_byte_sizes);
 }
 
-static size_t fl_ecs_get_table_idx(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component) {
+static inline size_t fl_ecs_get_table_idx(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component) {
     return component * p_ctx->entity_cap + entity;
 }
 
@@ -108,6 +108,10 @@ void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity, FlCompo
 
     const size_t component_byte_size = p_ctx->component_byte_sizes[component];
     return &data_list[component_byte_size * entity];
+}
+
+b8 fl_ecs_entity_has_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component) {
+    return p_ctx->table[fl_ecs_get_table_idx(p_ctx, entity, component)];
 }
 
 

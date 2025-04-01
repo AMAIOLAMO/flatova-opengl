@@ -8,7 +8,7 @@ in vec3 frag_pos;
 
 out vec4 FragColor;
 
-vec3 light_pos = vec3(5.0f, 5.0f, 0.0f);
+uniform vec3 light_pos;
 float light_strength = 1.0f;
 
 vec3 light_color = vec3(1.0f, 1.0f, 1.0f);

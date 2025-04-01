@@ -46,20 +46,6 @@ void framebuffer_size_callback(GLFWwindow* p_win, int width, int height) {
     glViewport(0, 0, width, height);
     printf("Detected frame buffer size change\n");
 }
-typedef struct SceneObject_t {
-    vec3 pos;
-    vec3 rot;
-    vec3 scale;
-    vec3 color;
-
-    const Shader *p_shader;
-    const Model  *p_model;
-} SceneObject;
-
-typedef struct SceneObjects_t {
-    size_t cap, len;
-    SceneObject *data;
-} SceneObjects;
 
 typedef struct Transform_t {
     vec3 pos, rot, scale;
@@ -70,6 +56,10 @@ typedef struct MeshRender_t {
     const Shader *p_shader;
     vec3 albedo_color;
 } MeshRender;
+
+typedef struct FlEditorComponents_t {
+    FlComponent transform, mesh_render;
+} FlEditorComponents;
 
 
 
@@ -183,6 +173,7 @@ void process_input(GLFWwindow *p_win, float dt) {
 typedef struct Scene_t {
     vec4 clear_color;
     b8 wireframe_mode;
+    vec3 light_pos;
 
     FlEcsCtx *p_ecs_ctx;
 } Scene;
@@ -252,8 +243,8 @@ void render_skybox(Resources resources, const Pipeline pipeline, Camera *p_cam, 
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene *p_scene, Resources resources,
-                        FlComponent mesh_render_comp, FlComponent transform_comp) {
+void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, Scene *p_scene,
+                        Resources resources, FlComponent mesh_render_comp, FlComponent transform_comp) {
     glClearColor(
         p_scene->clear_color[0], p_scene->clear_color[1],
         p_scene->clear_color[2], p_scene->clear_color[3]
@@ -309,6 +300,7 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, const Scene 
         );
 
         shader_use(*p_shader); {
+            shader_set_uniform_3f(*p_shader, "light_pos", p_scene->light_pos);
             shader_set_uniform_3f(*p_shader, "albedo_color", p_mesh_render->albedo_color);
             shader_set_uniform_3f(*p_shader, "cam_pos", cam.pos);
             shader_set_uniform_mat4fv(*p_shader, "view_proj", view_proj_mat);
@@ -425,8 +417,8 @@ void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_col
 }
 
 // hierarchy
-void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlComponent transform_id, FlComponent mesh_render_id,
-                            Resources resources, Shader *p_default_shader) {
+void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,
+                            Resources resources, FlEntity *p_chosen_entity) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         const Model *p_model = resources_find(resources, "primitives/default_model");
@@ -437,6 +429,9 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlComponen
         nk_layout_row_push(p_ctx, DPI_SCALEX(25));
 
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
+
+        const FlComponent transform_id = p_comps->transform;
+        const FlComponent mesh_render_id = p_comps->mesh_render;
 
         if(nk_button_label(p_ctx, "+")) {
             // TODO: the UI should not have the power to modify entities directly
@@ -450,7 +445,9 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlComponen
             fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
             fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
 
-            *p_render = (MeshRender){ .p_model = p_model, .p_shader = p_default_shader, .albedo_color = {1.0f, 1.0f, 1.0f} };
+            Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
+
+            *p_render = (MeshRender){ .p_model = p_model, .p_shader = p_phong, .albedo_color = {1.0f, 1.0f, 1.0f} };
         }
 
         nk_layout_row_push(p_ctx, DPI_SCALEX(120));
@@ -466,32 +463,26 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlComponen
         size_t iter = 0;
         FlEntity entity;
 
-        Transform *p_transform;
-
         FlComponent query_components[] = {
             transform_id
         };
 
-        while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
-            p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
 
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] entity:", entity);
+        // TODO: instead of checking specifically components, we just loop and allowing choosing of entities
+        if (nk_tree_push(p_ctx, NK_TREE_NODE, "Entities", NK_MINIMIZED)) {
 
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-            render_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
+            char txt_buf[256] = {0};
+            while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                snprintf(txt_buf, arr_size(txt_buf), "[%zu] Entity", entity);
 
-            render_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
-            render_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+                nk_bool is_chosen = *p_chosen_entity == entity;
 
-            /*struct nk_colorf nk_obj_color = { p_obj->color[0], p_obj->color[1], p_obj->color[2], 1.0f };*/
-            /**/
-            /*nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);*/
-            /*render_combo_color_picker(p_ctx, &nk_obj_color);*/
-            /**/
-            /*p_obj->color[0] = nk_obj_color.r;*/
-            /*p_obj->color[1] = nk_obj_color.g;*/
-            /*p_obj->color[2] = nk_obj_color.b;*/
+                if(nk_selectable_label(p_ctx, txt_buf, NK_TEXT_LEFT, &is_chosen))
+                    *p_chosen_entity = entity;
+            }
+
+            nk_tree_pop(p_ctx);
         }
     }
     nk_end(p_ctx);
@@ -629,6 +620,84 @@ void render_file_browser(struct nk_context *p_ctx) {
     nk_end(p_ctx);
 }
 
+void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps, FlEntity *p_chosen_entity) {
+    if (nk_begin(p_ctx, "Entity Inspector",
+                 nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
+                 DEFAULT_NK_WIN_FLAGS)) {
+        FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
+
+        // TODO: HACK entity checking is not strict here, it will break when we introduce deleting of entities
+        // since we will move around the entity IDs in memory, so FlEntity cannot be directly used to check whether or not
+        // it is a valid entity
+        if(p_ecs_ctx->entity_count > 0 && (*p_chosen_entity) < p_ecs_ctx->entity_count) {
+            const FlComponent transform_id = p_comps->transform;
+            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, transform_id)) {
+                Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
+                
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                render_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
+
+                render_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
+                render_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+            }
+
+            const FlComponent mesh_render_id = p_comps->mesh_render;
+            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
+                MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
+
+                vec3 *p_color = &p_mesh_render->albedo_color;
+
+                struct nk_colorf nk_obj_color = { (*p_color)[0], (*p_color)[1], (*p_color)[2], 1.0f };
+
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                render_combo_color_picker(p_ctx, &nk_obj_color);
+
+                (*p_color)[0] = nk_obj_color.r;
+                (*p_color)[1] = nk_obj_color.g;
+                (*p_color)[2] = nk_obj_color.b;
+            }
+        }
+    }
+    nk_end(p_ctx);
+}
+
+int fl_glfw_init(GLFWwindow **pp_win) {
+    glfwInit();
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+
+    GLFWwindow *p_win = glfwCreateWindow(1000, 900, "Flatova", NULL, NULL);
+    *pp_win = p_win;
+
+    if(p_win == NULL) {
+        printf("Error: failed to create GLFW window\n");
+        glfwTerminate();
+        return false;
+    }
+
+    glfwMakeContextCurrent(p_win);
+
+    if(!init_glad()) {
+        printf("Error: Failed to initialize GLAD\n");
+        glfwTerminate();
+        return false;
+    }
+
+    // GLFW CALLBACKS
+    glfwSetFramebufferSizeCallback(p_win, framebuffer_size_callback);
+
+    GLFWmonitor *primary_monitor = glfwGetPrimaryMonitor();
+    float dpi_xscale, dpi_yscale;
+    glfwGetMonitorContentScale(primary_monitor, &dpi_xscale, &dpi_yscale);
+
+    printf("Found primary monitor scale: <%f, %f>\n", dpi_xscale, dpi_yscale);
+
+    g_scaling_set_dpi(dpi_xscale, dpi_yscale);
+    
+    return true;
+}
+
 int main(void) {
     const size_t TBL_ENTITY_COUNT = 100;
     const size_t TBL_COMPONENT_COUNT = 32;
@@ -642,7 +711,6 @@ int main(void) {
     const FlComponent MESH_RENDER_ID = fl_ecs_add_component(
         &ecs_ctx, sizeof(MeshRender)
     );
-
 
     NFD_Init();
 
@@ -658,38 +726,12 @@ int main(void) {
     Model skybox = load_model_obj("vendor/primitive_models/skybox.obj");
     resources_store(resources, "primitives/skybox", &skybox);
 
-    glfwInit();
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    GLFWwindow *p_win = NULL;
 
-    GLFWwindow *p_win = glfwCreateWindow(1000, 900, "Flatova", NULL, NULL);
-
-    if(p_win == NULL) {
-        printf("Error: failed to create GLFW window\n");
-        glfwTerminate();
+    if(fl_glfw_init(&p_win) == false) {
+        printf("Error: Failed to initialize GLFW! aborting...\n");
         return -1;
     }
-
-    glfwMakeContextCurrent(p_win);
-
-    if(!init_glad()) {
-        printf("Error: Failed to initialize GLAD\n");
-        glfwTerminate();
-        return -1;
-    }
-    
-    // GLFW CALLBACKS
-    glfwSetFramebufferSizeCallback(p_win, framebuffer_size_callback);
-
-    GLFWmonitor *primary_monitor = glfwGetPrimaryMonitor();
-    float dpi_xscale, dpi_yscale;
-    glfwGetMonitorContentScale(primary_monitor, &dpi_xscale, &dpi_yscale);
-
-    printf("Found primary monitor scale: <%f, %f>\n", dpi_xscale, dpi_yscale);
-
-    g_scaling_set_dpi(dpi_xscale, dpi_yscale);
-
 
     // NUKLEAR SETUP
     struct nk_glfw nk_glfw = {0};
@@ -838,6 +880,7 @@ int main(void) {
     editor_ctx_register_widget(editor_ctx, "resource viewer");
     editor_ctx_register_widget(editor_ctx, "scene settings");
     editor_ctx_register_widget(editor_ctx, "file browser");
+    editor_ctx_register_widget(editor_ctx, "entity inspector");
 
     while(!glfwWindowShouldClose(p_win)) {
         float current_time = glfwGetTime();
@@ -850,8 +893,15 @@ int main(void) {
 
         render_main_menubar(nk_ctx, p_win, &editor_ctx);
 
+        FlEditorComponents comps = {
+            .transform = TRANSFORM_ID,
+            .mesh_render = MESH_RENDER_ID
+        };
+
+        static FlEntity chosen_entity = 0;
+
         if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
-            render_scene_hierarchy(nk_ctx, &scene, TRANSFORM_ID, MESH_RENDER_ID, resources, p_phong_shader);
+            render_scene_hierarchy(nk_ctx, &scene, &comps, resources, &chosen_entity);
 
         if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win);
@@ -865,7 +915,11 @@ int main(void) {
         if(editor_ctx_is_widget_open(editor_ctx, "file browser"))
             render_file_browser(nk_ctx);
 
+        if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
+            render_entity_inspector(nk_ctx, &scene, &comps, &chosen_entity);
+
         render_editor_metrics(nk_ctx, p_win, dt);
+
 
         // RENDERING
         render_scene_frame(p_win, pipe, &scene, resources, MESH_RENDER_ID, TRANSFORM_ID);

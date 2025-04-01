@@ -39,5 +39,6 @@ FlEntity fl_ecs_entity_add(FlEcsCtx *p_ctx);
 
 void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component);
 
+b8 fl_ecs_entity_has_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component);
 
 #endif // _FL_ECS_H
