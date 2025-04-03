@@ -4,6 +4,8 @@
 
 #include <utils.h>
 
+#include <fl_ecs.h>
+
 typedef struct FlWidgetCtx_t {
     const char *identifier;
     b8 is_open;
@@ -22,6 +24,10 @@ b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_ope
 b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier);
 
 void editor_ctx_free(FlEditorCtx ctx);
+
+typedef struct FlEditorComponents_t {
+    FlComponent transform, mesh_render;
+} FlEditorComponents;
 
 
 #endif // _EDITOR_H

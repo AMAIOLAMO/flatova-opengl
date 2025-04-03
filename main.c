@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <string.h>
 #include <unistd.h>
 #include <assert.h>
 
@@ -23,6 +24,7 @@
 
 #include <cxlist.h>
 
+#include <common.h>
 #include <utils.h>
 #include <camera.h>
 #include <shader.h>
@@ -46,32 +48,6 @@ void framebuffer_size_callback(GLFWwindow* p_win, int width, int height) {
     glViewport(0, 0, width, height);
     printf("Detected frame buffer size change\n");
 }
-
-typedef struct Transform_t {
-    vec3 pos, rot, scale;
-} Transform;
-
-typedef struct MeshRender_t {
-    const Model *p_model;
-    const Shader *p_shader;
-    vec3 albedo_color;
-} MeshRender;
-
-typedef struct FlEditorComponents_t {
-    FlComponent transform, mesh_render;
-} FlEditorComponents;
-
-
-
-// applies the position, rotation and scale on the given matrix
-void transform_apply(Transform transform, mat4 applied_mat) {
-    glm_translate(applied_mat, transform.pos);
-
-    euler_radians_transform_xyz(transform.rot, applied_mat);
-
-    glm_scale(applied_mat, transform.scale);
-}
-
 
 typedef struct Pipeline_t {
     GLuint vert_buf;
@@ -168,26 +144,6 @@ void process_input(GLFWwindow *p_win, float dt) {
     glm_vec3_add(cam.pos, right, cam.pos);
 
     cam.pos[1] += glfw_key_strength(p_win, GLFW_KEY_E, GLFW_KEY_Q) * cam_move_speed * dt;
-}
-
-typedef struct Scene_t {
-    vec4 clear_color;
-    b8 wireframe_mode;
-    vec3 light_pos;
-
-    FlEcsCtx *p_ecs_ctx;
-} Scene;
-
-Scene create_scene(const vec4 clear_color, FlEcsCtx *p_ctx) {
-    return (Scene){
-        .clear_color = {clear_color[0], clear_color[1], clear_color[2], clear_color[3]},
-        .wireframe_mode = false,
-        .p_ecs_ctx = p_ctx
-    };
-}
-
-void scene_free(Scene *p_scene) {
-    (void) p_scene;
 }
 
 void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
@@ -337,17 +293,7 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, Scene *p_sce
     glDisable(GL_DEPTH_TEST);
 }
 
-
-typedef struct ScalingHandle_t {
-    vec2 dpi_scale;
-} ScalingHandle;
-
-void scaling_set_dpi(ScalingHandle *p_handle, float xscale, float yscale) {
-    p_handle->dpi_scale[0] = xscale;
-    p_handle->dpi_scale[1] = yscale;
-}
-
-ScalingHandle __g_scaling_handle = {{1.0f, 1.0f}};
+FlScaling __g_scaling_handle = {{1.0f, 1.0f}};
 
 void g_scaling_set_dpi(float xscale, float yscale) {
     scaling_set_dpi(&__g_scaling_handle, xscale, yscale);
@@ -361,7 +307,12 @@ const nk_flags DEFAULT_NK_WIN_FLAGS = NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WIND
 
 const nk_flags EMPTY_NK_WIN_FLAGS = 0;
 
-void render_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float min, float max) {
+/*typedef struct FlUICtx_t {*/
+/*    struct nk_context *p_nk_ctx;*/
+/*    FlScaling scaling;*/
+/*} FlUICtx;*/
+
+void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float min, float max) {
     assert(min <= max && "the min value should always be smaller or equal to the max value");
     nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
 
@@ -496,7 +447,7 @@ void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win) {
     if (nk_begin(p_ctx, "Camera Properties", nk_rect(width - DPI_SCALEX(340 + 20), DPI_SCALEY(50),
                                                       DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(18), 1);
-        render_xyz_widget(p_ctx, "Position", cam.pos, -HUGE_VALUEF, HUGE_VALUEF);
+        fl_xyz_widget(p_ctx, "Position", cam.pos, -HUGE_VALUEF, HUGE_VALUEF);
 
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
         nk_property_float(p_ctx, "h(rad):", -FL_TAU, &cam.h_rot, FL_TAU, 0.1f, 0.01f);
@@ -528,12 +479,41 @@ void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt
     nk_end(p_ctx);
 }
 
+void resources_model_free(void *p_raw) {
+    model_free(p_raw);
+}
+
 void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
     if (nk_begin(p_ctx, "Resource Viewer", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
         if(nk_button_label(p_ctx, "load model")) {
-        
+
+            nfdu8char_t *model_path;
+            nfdu8filteritem_t filters[] = { { "Wavefront Obj", "obj" } };
+
+            nfdopendialogu8args_t args = {0};
+            args.filterList = filters;
+            args.filterCount = arr_size(filters);
+
+            nfdresult_t result = NFD_OpenDialogU8_With(&model_path, &args);
+
+            if (result == NFD_OKAY) {
+                puts("Info: Found model at path\n");
+                puts(model_path);
+                
+                // TODO: automate this, make a simple function to do this instead
+                Model *p_model = load_model_obj(model_path);
+                resources_store_auto(resources, "primitives/a", p_model, resources_model_free);
+
+                NFD_FreePathU8(model_path);
+            }
+            else if (result == NFD_CANCEL) {
+                puts("Info: pressed cancel.");
+            }
+            else {
+                printf("Error: %s\n", NFD_GetError());
+            }
         }
         
         size_t iter = 0;
@@ -620,30 +600,54 @@ void render_file_browser(struct nk_context *p_ctx) {
     nk_end(p_ctx);
 }
 
-void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps, FlEntity *p_chosen_entity) {
+void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
+                             FlEditorComponents *p_comps, FlEntity *p_chosen_entity) {
     if (nk_begin(p_ctx, "Entity Inspector",
                  nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
                  DEFAULT_NK_WIN_FLAGS)) {
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
+
 
         // TODO: HACK entity checking is not strict here, it will break when we introduce deleting of entities
         // since we will move around the entity IDs in memory, so FlEntity cannot be directly used to check whether or not
         // it is a valid entity
         if(p_ecs_ctx->entity_count > 0 && (*p_chosen_entity) < p_ecs_ctx->entity_count) {
             const FlComponent transform_id = p_comps->transform;
+
+            // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, transform_id)) {
                 Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
                 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                render_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
+                fl_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
 
-                render_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
-                render_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+                fl_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
+                fl_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
             }
 
             const FlComponent mesh_render_id = p_comps->mesh_render;
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
                 MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
+
+                size_t r_iter = 0;
+                Resource *p_resource = NULL;
+
+                const char *models[50] = {0};
+                size_t items_size = 0;
+
+                while(resources_iter(resources, &r_iter, &p_resource)) {
+                    if(strncmp(p_resource->identifier, "primitives", strlen("primitives")) == 0)
+                        models[items_size++] = p_resource->identifier;
+                }
+
+                static int selected = 0;
+
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                selected = nk_combo(p_ctx, models, items_size, selected, DPI_SCALEY(15), nk_vec2(DPI_SCALEX(100), DPI_SCALEY(200)));
+
+                Model *p_chose_model = (Model*)resources_find(resources, models[selected]);
+
+                p_mesh_render->p_model = p_chose_model;
 
                 vec3 *p_color = &p_mesh_render->albedo_color;
 
@@ -720,11 +724,11 @@ int main(void) {
     getcwd(cwd_path, arr_size(cwd_path));
     printf("running on working directory: %s\n", cwd_path);
 
-    Model default_model = load_model_obj("vendor/primitive_models/test_complex.obj");
-    resources_store(resources, "primitives/default_model", &default_model);
+    Model *default_model = load_model_obj("vendor/primitive_models/test_complex.obj");
+    resources_store(resources, "primitives/default_model", default_model);
 
-    Model skybox = load_model_obj("vendor/primitive_models/skybox.obj");
-    resources_store(resources, "primitives/skybox", &skybox);
+    Model *skybox = load_model_obj("vendor/primitive_models/skybox.obj");
+    resources_store(resources, "primitives/skybox", skybox);
 
     GLFWwindow *p_win = NULL;
 
@@ -916,7 +920,7 @@ int main(void) {
             render_file_browser(nk_ctx);
 
         if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
-            render_entity_inspector(nk_ctx, &scene, &comps, &chosen_entity);
+            render_entity_inspector(nk_ctx, &scene, resources, &comps, &chosen_entity);
 
         render_editor_metrics(nk_ctx, p_win, dt);
 

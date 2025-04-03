@@ -2,9 +2,7 @@
 #ifndef _SHADER_H
 #define _SHADER_H
 
-#include <glad/glad.h>
 #include <utils.h>
-#include <cglm/cglm.h>
 
 typedef struct Shader_t {
     GLuint vert, frag;

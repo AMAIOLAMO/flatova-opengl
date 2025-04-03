@@ -3,8 +3,9 @@
 #include <fast_obj.h>
 #include <string.h>
 
-Model load_model_obj(const char *path) {
-    Model model = {0};
+Model* load_model_obj(const char *path) {
+    Model *p_model = malloc(sizeof(Model));
+
     // quote from fast_obj
     /* Note: a dummy zero-initialized value is added to the first index
        of the positions, texcoords, normals and textures arrays. Hence,
@@ -12,14 +13,17 @@ Model load_model_obj(const char *path) {
        indicating that the attribute is not present. */
     fastObjMesh *fo_mesh = fast_obj_read(path);
 
+    // TODO: this is an assumption, because the fact that the triangles may not be loaded in 4 vertices each face
+    // obj does not store triangulation, we should be the one who handles that
+    // a solution is that we triangulate every mesh that is included
     const size_t VERT_COUNT_PER_FACE = 6;
 
     size_t size = fo_mesh->face_count * VERT_COUNT_PER_FACE;
 
-    model.verts = malloc(sizeof(Vertex) * size);
-    model.verts_count = size;
+    p_model->verts = malloc(sizeof(Vertex) * size);
+    p_model->verts_count = size;
 
-    memset(model.verts, 0, sizeof(Vertex) * size);
+    memset(p_model->verts, 0, sizeof(Vertex) * size);
 
     // f v / vt / vn
     for(size_t i = 0; i < fo_mesh->face_count; i++) {
@@ -39,18 +43,19 @@ Model load_model_obj(const char *path) {
             size_t norm_idx      = p_vidx->n;
 
             size_t model_vert_idx = i * VERT_COUNT_PER_FACE + off_i;
-            glm_vec3_copy(&fo_mesh->positions[p_idx * 3],         model.verts[model_vert_idx].pos);
-            glm_vec3_copy(&fo_mesh->normals[norm_idx * 3],        model.verts[model_vert_idx].normal);
-            glm_vec2_copy(&fo_mesh->texcoords[tex_coord_idx * 2], model.verts[model_vert_idx].tex_coord);
+            glm_vec3_copy(&fo_mesh->positions[p_idx * 3],         p_model->verts[model_vert_idx].pos);
+            glm_vec3_copy(&fo_mesh->normals[norm_idx * 3],        p_model->verts[model_vert_idx].normal);
+            glm_vec2_copy(&fo_mesh->texcoords[tex_coord_idx * 2], p_model->verts[model_vert_idx].tex_coord);
         }
 
     }
 
     fast_obj_destroy(fo_mesh);
 
-    return model;
+    return p_model;
 }
 
-void model_free(Model model) {
-    free(model.verts);
+void model_free(Model *p_model) {
+    free(p_model->verts);
+    free(p_model);
 }

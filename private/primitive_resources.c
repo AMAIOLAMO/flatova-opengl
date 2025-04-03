@@ -1,5 +1,6 @@
 #include <primitive_resources.h>
-#include <stdio.h>
+
+#include <stdlib.h>
 
 void res_shader_free(void *p_raw) {
     Shader *p_shader = p_raw;
