@@ -20,7 +20,3 @@ void scene_free(Scene *p_scene) {
     (void) p_scene;
 }
 
-void scaling_set_dpi(FlScaling *p_handle, float xscale, float yscale) {
-    p_handle->dpi_scale[0] = xscale;
-    p_handle->dpi_scale[1] = yscale;
-}

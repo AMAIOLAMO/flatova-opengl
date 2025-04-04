@@ -34,11 +34,4 @@ Scene create_scene(const vec4 clear_color, FlEcsCtx *p_ctx);
 void scene_free(Scene *p_scene);
 
 
-typedef struct FlScaling_t {
-    vec2 dpi_scale;
-} FlScaling;
-
-void scaling_set_dpi(FlScaling *p_handle, float xscale, float yscale);
-
-
 #endif // _COMMON_H
