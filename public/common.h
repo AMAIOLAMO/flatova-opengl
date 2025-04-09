@@ -7,6 +7,7 @@
 #include <model.h>
 #include <shader.h>
 #include <fl_ecs.h>
+#include <camera.h>
 
 typedef struct Transform_t {
     vec3 pos, rot, scale;

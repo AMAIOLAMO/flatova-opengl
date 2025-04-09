@@ -8,8 +8,6 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
 
-#include <fast_obj.h>
-
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_IO
 #define NK_INCLUDE_STANDARD_VARARGS
@@ -22,8 +20,6 @@
 
 #include <nfd.h>
 #include <tinydir.h>
-
-#include <cxlist.h>
 
 #include <common.h>
 #include <utils.h>
@@ -171,8 +167,8 @@ void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, ma
 
 void render_skybox(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_skybox_shader = (Shader*)resources_find(resources, "shaders/skybox");
-    Model *p_skybox_model = (Model*)resources_find(resources, "primitives/skybox");
-    GLuint *p_skybox_tex = (GLuint*)resources_find(resources, "textures/skymap");
+    Model *p_skybox_model   = (Model*)resources_find(resources, "primitives/skybox");
+    GLuint *p_skybox_tex    = (GLuint*)resources_find(resources, "textures/skymap");
 
     shader_use(*p_skybox_shader); {
         glActiveTexture(GL_TEXTURE0);
@@ -354,11 +350,19 @@ int main(void) {
     getcwd(cwd_path, arr_size(cwd_path));
     printf("running on working directory: %s\n", cwd_path);
 
-    Model *default_model = load_model_obj("vendor/primitive_models/test_complex.obj");
-    resources_store(resources, "primitives/default_model", default_model);
+    Model *default_model = resources_load_model_from_obj(
+        resources,
+        "primitives/default_model", "vendor/primitive_models/test_complex.obj"
+    );
 
-    Model *skybox = load_model_obj("vendor/primitive_models/skybox.obj");
-    resources_store(resources, "primitives/skybox", skybox);
+    assert(default_model && "ERROR: cannot load default model!");
+
+
+    Model *skybox = resources_load_model_from_obj(
+        resources,
+        "primitives/skybox", "vendor/primitive_models/skybox.obj"
+    );
+    assert(skybox && "ERROR: cannot load skybox model!");
 
     GLFWwindow *p_win = NULL;
 
@@ -392,7 +396,7 @@ int main(void) {
 
 
     // LOAD all shaders in vendor
-    if( resources_load_shader_from_files(
+    if(resources_load_shader_from_files(
         resources, "shaders/grid",
         "./shaders/grid.vs", "./shaders/grid.fs"
     ) == NULL) {
@@ -566,9 +570,6 @@ int main(void) {
 
     editor_ctx_free(editor_ctx);
     fl_ecs_ctx_free(&ecs_ctx);
-
-    model_free(default_model);
-    model_free(skybox);
 
     scene_free(&scene);
     resources_free(resources);
