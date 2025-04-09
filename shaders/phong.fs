@@ -1,6 +1,13 @@
 #version 330 core
 
-uniform vec3 albedo_color;
+struct Material {
+    vec3 ambient;
+    vec3 diffuse;
+    vec3 specular;
+    float specular_factor;
+};
+
+uniform Material material;
 uniform vec3 cam_pos;
 
 in vec3 norm;
@@ -13,26 +20,29 @@ float light_strength = 1.0f;
 
 vec3 light_color = vec3(1.0f, 1.0f, 1.0f);
 float ambient_strength = 0.3f;
-float specular_strength = 2.0f;
+float specular_strength = 1.0f;
 
 void main() {
     vec3 n = normalize(norm);
     vec3 light_dir = normalize(light_pos - frag_pos);
     vec3 cam_dir = normalize(cam_pos - frag_pos);
 
-    vec3 ambient = light_color * ambient_strength;
+    // AMBIENT
+    vec3 ambient = light_color * material.ambient * ambient_strength;
 
+    // DIFFUSE
     float diff = max(dot(n, light_dir), 0.0f);
+    vec3 diffuse = light_color * diff * material.diffuse;
 
-    vec3 diffuse = diff * light_color;
 
+    // SPECULAR
     vec3 light_to_frag = normalize(frag_pos - light_pos);
-
     float spec = max(dot(reflect(light_to_frag, n), cam_dir), 0.0f);
+    spec = pow(spec, material.specular_factor) * specular_strength;
+    vec3 specular = light_color * material.specular * spec;
 
-    vec3 specular = light_color * pow(spec, 32.0f) * specular_strength;
-
-    vec3 result = (ambient + diffuse + specular) * albedo_color * light_strength;
+    // RESULT
+    vec3 result = ambient + diffuse + specular;
 
     FragColor = vec4(result, 1.0f);
 }

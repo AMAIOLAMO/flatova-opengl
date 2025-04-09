@@ -104,6 +104,27 @@ void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float
     }
 }
 
+void render_combo_color_picker_vec4(struct nk_context *p_ctx, vec4 *p_color) {
+    struct nk_colorf nk_obj_color = { (*p_color)[0], (*p_color)[1], (*p_color)[2], (*p_color)[3] };
+
+    render_combo_color_picker(p_ctx, &nk_obj_color);
+
+    (*p_color)[0] = nk_obj_color.r;
+    (*p_color)[1] = nk_obj_color.g;
+    (*p_color)[2] = nk_obj_color.b;
+    (*p_color)[3] = nk_obj_color.a;
+}
+
+void render_combo_color_picker_vec3(struct nk_context *p_ctx, vec3 *p_color) {
+    struct nk_colorf nk_obj_color = { (*p_color)[0], (*p_color)[1], (*p_color)[2], 1.0f };
+
+    render_combo_color_picker(p_ctx, &nk_obj_color);
+
+    (*p_color)[0] = nk_obj_color.r;
+    (*p_color)[1] = nk_obj_color.g;
+    (*p_color)[2] = nk_obj_color.b;
+}
+
 void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) {
     if (nk_combo_begin_color(
         p_ctx, nk_rgb_cf(*p_color),
@@ -172,7 +193,10 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
             Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
 
-            *p_render = (MeshRender){ .p_model = p_model, .p_shader = p_phong, .albedo_color = {1.0f, 1.0f, 1.0f} };
+            *p_render = (MeshRender){
+                .p_model = p_model, .p_shader = p_phong,
+                .specular_color = {1.0f, 1.0f, 1.0f}, .albedo_color = {1.0f, 1.0f, 1.0f}, .specular_factor = 32.0f
+            };
         }
 
         nk_layout_row_push(p_ctx, DPI_SCALEX(120));
@@ -182,7 +206,6 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);
-
 
         
         size_t iter = 0;
@@ -315,18 +338,12 @@ void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene) {
         nk_checkbox_label(p_ctx, "wireframe", &nk_wireframe);
         p_scene->wireframe_mode = nk_wireframe;
 
-        struct nk_colorf nk_obj_color = {
-            p_scene->clear_color[0], p_scene->clear_color[1],
-            p_scene->clear_color[2], p_scene->clear_color[3]
-        };
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+        nk_label(p_ctx, "Clear Color", NK_TEXT_LEFT);
+        render_combo_color_picker_vec4(p_ctx, &p_scene->clear_color);
 
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-        render_combo_color_picker(p_ctx, &nk_obj_color);
-
-        p_scene->clear_color[0] = nk_obj_color.r;
-        p_scene->clear_color[1] = nk_obj_color.g;
-        p_scene->clear_color[2] = nk_obj_color.b;
-        p_scene->clear_color[3] = nk_obj_color.a;
+        nk_label(p_ctx, "Ambient Color", NK_TEXT_LEFT);
+        render_combo_color_picker_vec3(p_ctx, &p_scene->ambient_color);
     }
     nk_end(p_ctx);
 }
@@ -389,6 +406,7 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
             const FlComponent transform_id = p_comps->transform;
 
             // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
+            // RENDER TRANSFORM
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, transform_id)) {
                 Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
                 
@@ -399,6 +417,7 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                 fl_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
             }
 
+            // RENDER MESH RENDER
             const FlComponent mesh_render_id = p_comps->mesh_render;
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
                 MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
@@ -423,16 +442,15 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 p_mesh_render->p_model = p_chose_model;
 
-                vec3 *p_color = &p_mesh_render->albedo_color;
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+                nk_label(p_ctx, "Albedo", NK_TEXT_LEFT);
+                render_combo_color_picker_vec3(p_ctx, &p_mesh_render->albedo_color);
 
-                struct nk_colorf nk_obj_color = { (*p_color)[0], (*p_color)[1], (*p_color)[2], 1.0f };
+                nk_label(p_ctx, "Specular", NK_TEXT_LEFT);
+                render_combo_color_picker_vec3(p_ctx, &p_mesh_render->specular_color);
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                render_combo_color_picker(p_ctx, &nk_obj_color);
-
-                (*p_color)[0] = nk_obj_color.r;
-                (*p_color)[1] = nk_obj_color.g;
-                (*p_color)[2] = nk_obj_color.b;
+                nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
             }
         }
     }

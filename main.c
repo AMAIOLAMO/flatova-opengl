@@ -254,7 +254,13 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, Scene *p_sce
 
         shader_use(*p_shader); {
             shader_set_uniform_3f(*p_shader, "light_pos", p_scene->light_pos);
-            shader_set_uniform_3f(*p_shader, "albedo_color", p_mesh_render->albedo_color);
+
+            shader_set_uniform_3f(*p_shader, "material.diffuse", p_mesh_render->albedo_color);
+            shader_set_uniform_3f(*p_shader, "material.specular", p_mesh_render->specular_color);
+            shader_set_uniform_1f(*p_shader, "material.specular_factor", p_mesh_render->specular_factor);
+
+            shader_set_uniform_3f(*p_shader, "material.ambient", p_scene->ambient_color);
+
             shader_set_uniform_3f(*p_shader, "cam_pos", cam.pos);
             shader_set_uniform_mat4fv(*p_shader, "view_proj", view_proj_mat);
 
@@ -507,7 +513,13 @@ int main(void) {
     float dt = glfwGetTime();
     float prev_time = glfwGetTime();
 
-    Scene scene = create_scene((vec4){0.0f, 0.0f, 0.0f, 1.0f}, &ecs_ctx);
+    Scene scene = {
+        .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
+        .ambient_color = {1.0f, 1.0f, 1.0f},
+        .light_pos = {5.0f, 1.0f, 2.0f},
+        .p_ecs_ctx = &ecs_ctx,
+        .wireframe_mode = false,
+    };
 
     FlEditorCtx editor_ctx = create_editor_ctx();
     editor_ctx_register_widget(editor_ctx, "scene hierarchy");
