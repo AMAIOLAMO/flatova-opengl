@@ -167,7 +167,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
                             Resources resources, FlEntity *p_chosen_entity) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        const Model *p_model = resources_find(resources, "primitives/default_model");
+        const Model *p_model = resources_find(resources, "primitives/primitive_cube");
 
         nk_menubar_begin(p_ctx);
 

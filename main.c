@@ -1,3 +1,4 @@
+#include "cxlist.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -334,6 +335,78 @@ int fl_glfw_init(GLFWwindow **pp_win) {
     return true;
 }
 
+// checks whether or not a directory is a special navigation(. and ..)
+int tinydir_is_nav(const tinydir_file file) {
+    return file.is_dir && (
+        strcmp(file.name, ".") == 0 || strcmp(file.name, "..") == 0
+    );
+}
+
+typedef struct ResIdStrings_t {
+    size_t len, cap;
+    char **data;
+} ResIdStrings;
+
+void resources_unload_idstrings(ResIdStrings *p_strs) {
+    for(size_t i = 0; i < p_strs->len; i++) {
+        free(p_strs->data[i]);
+    }
+    list_free(p_strs);
+}
+
+// TODO: maybe allocate this alloc strings inside of resources itself?
+void resources_load_dir_recursive(Resources res, size_t depth, const char *path, ResIdStrings *p_alloc_strings) {
+    tinydir_dir vendor_dir = {0};
+
+    if(tinydir_open(&vendor_dir, path) == -1) {
+        perror("ERROR: cannot open vendor directory!");
+    }
+    else {
+        while(vendor_dir.has_next) {
+            tinydir_file file;
+            if(tinydir_readfile(&vendor_dir, &file) == -1)
+                continue;
+
+            if(file.is_dir) {
+                // normal directories (not . and ..)
+                if(!tinydir_is_nav(file)) {
+                    if(depth > 0)
+                        resources_load_dir_recursive(res, depth - 1, file.path, p_alloc_strings);
+                }
+            }
+
+            const char *PRIMITIVES_PREFIX = "primitives/";
+            /*const char *SHADER_PREFIX     = "shaders/";*/
+            /*const char *TEXTURE_PREFIX    = "textures/";*/
+
+            if(file.is_reg) {
+                if(strcmp(file.extension, "obj") == 0) {
+                    size_t str_len = strlen(PRIMITIVES_PREFIX) + strlen(file.name) - strlen(file.extension) + 1;
+                    char *id = malloc(str_len);
+
+                    memset(id, '\0', str_len);
+                    strncpy(id, PRIMITIVES_PREFIX, strlen(PRIMITIVES_PREFIX));
+                    strncpy(id + strlen(PRIMITIVES_PREFIX), file.name, strlen(file.name) - strlen(file.extension) - 1);
+
+                    list_append(p_alloc_strings, id);
+
+                    resources_load_model_from_obj(res, id, file.path);
+                    printf("OBJ: %s -> %s ext: %s", file.name, file.path, file.extension);
+                }
+            }
+
+
+            printf("\n");
+
+            if(tinydir_next(&vendor_dir) == -1)
+                perror("ERROR; cannot get next file");
+
+        }
+    }
+
+    tinydir_close(&vendor_dir);
+}
+
 int main(void) {
     const size_t TBL_ENTITY_COUNT = 100;
     const size_t TBL_COMPONENT_COUNT = 32;
@@ -356,19 +429,10 @@ int main(void) {
     getcwd(cwd_path, arr_size(cwd_path));
     printf("running on working directory: %s\n", cwd_path);
 
-    Model *default_model = resources_load_model_from_obj(
-        resources,
-        "primitives/default_model", "vendor/primitive_models/test_complex.obj"
-    );
-
-    assert(default_model && "ERROR: cannot load default model!");
-
-
-    Model *skybox = resources_load_model_from_obj(
-        resources,
-        "primitives/skybox", "vendor/primitive_models/skybox.obj"
-    );
-    assert(skybox && "ERROR: cannot load skybox model!");
+    // loop through contents in vendor
+    const size_t DIR_DEPTH = 5;
+    ResIdStrings load_strings = {0};
+    resources_load_dir_recursive(resources, DIR_DEPTH, TINYDIR_STRING("./vendor"), &load_strings);
 
     GLFWwindow *p_win = NULL;
 
@@ -455,8 +519,10 @@ int main(void) {
 
     resources_store(resources, "primitives/plane", get_prim_plane_vertices());
 
+    /*resources_load_texture2d_linear_from_file("vendor/skymaps/skymap_1.png", GL_RGB, GL_UNSIGNED_BYTE);*/
+
     GLuint skymap_tex;
-    if(gl_try_load_texture2d_linear("vendor/skymaps/skymap_1.png", &skymap_tex, GL_RGB, GL_RGB, GL_UNSIGNED_BYTE) == false) {
+    if(gl_try_load_texture2d_linear("vendor/skymaps/skymap_1.png", &skymap_tex, GL_RGB) == false) {
         printf("Error: Failed to load skybox texture!\n");
         glfwTerminate();
         return -1;
@@ -585,6 +651,7 @@ int main(void) {
 
     scene_free(&scene);
     resources_free(resources);
+    resources_unload_idstrings(&load_strings);
 
     nk_glfw3_shutdown(&nk_glfw);
     glfwTerminate();

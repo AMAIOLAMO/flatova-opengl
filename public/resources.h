@@ -20,6 +20,7 @@ typedef struct Resource_t {
     res_free_func_t free;
 } Resource;
 
+
 typedef struct hashmap* Resources;
 
 // creates a resources list, needed to use "resource_manager_free" to free the manager itself
