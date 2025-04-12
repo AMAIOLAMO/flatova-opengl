@@ -46,7 +46,7 @@ const Resource* resources_store_auto(Resources resources, const char *id, void* 
     return hashmap_set(resources, &(Resource){ .identifier = id, .p_raw = p_res, .free = free_func });
 }
 
-const void* resources_find(Resources resources, const char *id) {
+void* resources_find(Resources resources, const char *id) {
     const Resource *resource = hashmap_get(resources, &(Resource){ .identifier = id });
 
     return resource ? resource->p_raw : NULL;

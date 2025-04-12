@@ -167,7 +167,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
                             Resources resources, FlEntity *p_chosen_entity) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        const Model *p_model = resources_find(resources, "primitives/primitive_cube");
+        const Model *p_model = resources_find(resources, "primitives/cube");
 
         nk_menubar_begin(p_ctx);
 
@@ -193,9 +193,15 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
             Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
 
+            GLuint *p_diffuse_texture  = resources_find(resources, "textures/white1x1");
+            assert(p_diffuse_texture);
+
+            GLuint *p_specular_texture = resources_find(resources, "textures/white1x1");
+            assert(p_specular_texture);
+
             *p_render = (MeshRender){
                 .p_model = p_model, .p_shader = p_phong,
-                .specular_color = {1.0f, 1.0f, 1.0f}, .albedo_color = {1.0f, 1.0f, 1.0f}, .specular_factor = 32.0f
+                .p_specular_tex = p_specular_texture, .p_diffuse_tex = p_diffuse_texture, .specular_factor = 32.0f
             };
         }
 
@@ -284,34 +290,34 @@ void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
     if (nk_begin(p_ctx, "Resource Viewer", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-        if(nk_button_label(p_ctx, "load model")) {
-
-            nfdu8char_t *model_path;
-            nfdu8filteritem_t filters[] = { { "Wavefront Obj", "obj" } };
-
-            nfdopendialogu8args_t args = {0};
-            args.filterList = filters;
-            args.filterCount = arr_size(filters);
-
-            nfdresult_t result = NFD_OpenDialogU8_With(&model_path, &args);
-
-            if (result == NFD_OKAY) {
-                puts("Info: Found model at path\n");
-                puts(model_path);
-                
-                // TODO: automate this, make a simple function to do this instead
-                Model *p_model = load_model_obj(model_path);
-                resources_store_auto(resources, "primitives/a", p_model, resources_model_free);
-
-                NFD_FreePathU8(model_path);
-            }
-            else if (result == NFD_CANCEL) {
-                puts("Info: pressed cancel.");
-            }
-            else {
-                printf("Error: %s\n", NFD_GetError());
-            }
-        }
+        // TODO: the resources loaded must know their name and path, instead of just "primitives/a"
+        /*if(nk_button_label(p_ctx, "load model")) {*/
+        /**/
+        /*    nfdu8char_t *model_path;*/
+        /*    nfdu8filteritem_t filters[] = { { "Wavefront Obj", "obj" } };*/
+        /**/
+        /*    nfdopendialogu8args_t args = {0};*/
+        /*    args.filterList = filters;*/
+        /*    args.filterCount = arr_size(filters);*/
+        /**/
+        /*    nfdresult_t result = NFD_OpenDialogU8_With(&model_path, &args);*/
+        /**/
+        /*    if (result == NFD_OKAY) {*/
+        /*        puts("Info: Found model at path\n");*/
+        /*        puts(model_path);*/
+        /**/
+        /*        Model *p_model = load_model_obj(model_path);*/
+        /*        resources_store_auto(resources, "primitives/a", p_model, resources_model_free);*/
+        /**/
+        /*        NFD_FreePathU8(model_path);*/
+        /*    }*/
+        /*    else if (result == NFD_CANCEL) {*/
+        /*        puts("Info: pressed cancel.");*/
+        /*    }*/
+        /*    else {*/
+        /*        printf("Error: %s\n", NFD_GetError());*/
+        /*    }*/
+        /*}*/
         
         size_t iter = 0;
         Resource *p_resource = NULL;
@@ -391,6 +397,42 @@ void render_file_browser(struct nk_context *p_ctx) {
     nk_end(p_ctx);
 }
 
+typedef b8(*res_filter_combo_func)(Resource *p_res);
+
+b8 res_filter_combo_primitives(Resource *p_res) {
+    return strncmp(p_res->identifier, "primitives", strlen("primitives")) == 0;
+}
+
+b8 res_filter_combo_textures(Resource *p_res) {
+    return strncmp(p_res->identifier, "textures", strlen("textures")) == 0;
+}
+
+void* resources_filtered_combo_selection(
+    Resources res, struct nk_context *p_ctx,
+    const void *current_resource, const char **list, size_t list_max_size, res_filter_combo_func filter_func) {
+    assert(filter_func && "ERR: filter function cannot be NULL");
+    size_t r_iter = 0;
+    Resource *p_resource = NULL;
+
+    size_t list_size = 0;
+
+    int selected = 0;
+
+    while(resources_iter(res, &r_iter, &p_resource) && list_size < list_max_size) {
+        if(filter_func(p_resource)) {
+            if(p_resource->p_raw == current_resource)
+                selected = list_size;
+
+            list[list_size++] = p_resource->identifier;
+        }
+    }
+
+    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+    selected = nk_combo(p_ctx, list, list_size, selected, DPI_SCALEY(15), nk_vec2(DPI_SCALEX(300), DPI_SCALEY(200)));
+
+    return resources_find(res, list[selected]);
+}
+
 void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
                              FlEditorComponents *p_comps, FlEntity *p_chosen_entity) {
     if (nk_begin(p_ctx, "Entity Inspector",
@@ -422,32 +464,50 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
                 MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
 
-                size_t r_iter = 0;
-                Resource *p_resource = NULL;
+                const char *models[30] = {0};
 
-                const char *models[50] = {0};
-                size_t items_size = 0;
-
-                while(resources_iter(resources, &r_iter, &p_resource)) {
-                    if(strncmp(p_resource->identifier, "primitives", strlen("primitives")) == 0)
-                        models[items_size++] = p_resource->identifier;
-                }
-
-                static int selected = 0;
-
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                selected = nk_combo(p_ctx, models, items_size, selected, DPI_SCALEY(15), nk_vec2(DPI_SCALEX(100), DPI_SCALEY(200)));
-
-                Model *p_chose_model = (Model*)resources_find(resources, models[selected]);
+                Model *p_chose_model = resources_filtered_combo_selection(
+                    resources, p_ctx, p_mesh_render->p_model, models, arr_size(models), res_filter_combo_primitives
+                );
 
                 p_mesh_render->p_model = p_chose_model;
 
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
-                nk_label(p_ctx, "Albedo", NK_TEXT_LEFT);
-                render_combo_color_picker_vec3(p_ctx, &p_mesh_render->albedo_color);
 
-                nk_label(p_ctx, "Specular", NK_TEXT_LEFT);
-                render_combo_color_picker_vec3(p_ctx, &p_mesh_render->specular_color);
+                
+                // TODO: requires fall back texture
+                const char *textures[30] = {0};
+
+                GLuint *p_diffuse_tex = resources_filtered_combo_selection(
+                    resources, p_ctx, p_mesh_render->p_diffuse_tex, textures, arr_size(textures), res_filter_combo_textures
+                );
+
+                p_mesh_render->p_diffuse_tex = p_diffuse_tex;
+
+                assert(p_mesh_render->p_diffuse_tex);
+                struct nk_image diffuse_map = nk_image_id(*p_mesh_render->p_diffuse_tex);
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
+                nk_label(p_ctx, "Diffuse Map:", NK_TEXT_LEFT);
+
+                nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
+                nk_layout_row_push(p_ctx, DPI_SCALEX(50));
+                nk_image(p_ctx, diffuse_map);
+                nk_layout_row_end(p_ctx);
+
+                GLuint *p_specular_tex = resources_filtered_combo_selection(
+                    resources, p_ctx, p_mesh_render->p_specular_tex, textures, arr_size(textures), res_filter_combo_textures
+                );
+
+                p_mesh_render->p_specular_tex = p_specular_tex;
+
+                assert(p_mesh_render->p_specular_tex);
+                struct nk_image specular_map = nk_image_id(*p_mesh_render->p_specular_tex);
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
+                nk_label(p_ctx, "Specular Map:", NK_TEXT_LEFT);
+
+                nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
+                nk_layout_row_push(p_ctx, DPI_SCALEX(50));
+                nk_image(p_ctx, specular_map);
+                nk_layout_row_end(p_ctx);
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
                 nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);

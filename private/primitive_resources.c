@@ -1,6 +1,9 @@
 #include <primitive_resources.h>
 
 #include <stdlib.h>
+#include <tinydir.h>
+#include <tinydir_ext.h>
+#include <cxlist.h>
 
 void res_shader_free(void *p_raw) {
     Shader *p_shader = p_raw;
@@ -37,5 +40,121 @@ Model* resources_load_model_from_obj(
     return p_model;
 }
 
+void res_texture2d_free(void *p_raw) {
+    GLuint *p_tex = p_raw;
+    glDeleteTextures(1, p_tex);
+    free(p_tex);
+}
 
+GLuint* resources_load_tex2d_linear_from_file(Resources resources, const char *identifier,
+                                             const char *path, GLenum tex_color) {
+    GLuint *p_tex = malloc(sizeof(GLuint));
+
+    if(gl_try_load_texture2d_linear(path, p_tex, tex_color) == false) {
+        free(p_tex);
+
+        return NULL;
+    }
+
+    resources_store_auto(resources, identifier, p_tex, res_texture2d_free);
+    return p_tex;
+}
+
+
+void resources_idstrings_free(void *p_raw) {
+    ResIdStrings *p_strs = p_raw;
+
+    for(size_t i = 0; i < p_strs->len; i++)
+        free(p_strs->data[i]);
+
+    list_free(p_strs);
+    free(p_strs);
+}
+
+void resources_load_dir_recursive(Resources res, size_t depth, const char *path) {
+    tinydir_dir vendor_dir = {0};
+
+    const char *ALLOC_RES_STRING_ID = "__ALLOC_RES_STRINGS__";
+
+    // lazy allocation
+    ResIdStrings *p_strings = resources_find(res, ALLOC_RES_STRING_ID);
+
+    if(p_strings == NULL) {
+        p_strings = malloc(sizeof(ResIdStrings));
+        memset(p_strings, 0, sizeof(ResIdStrings));
+
+        resources_store_auto(res, ALLOC_RES_STRING_ID, p_strings, resources_idstrings_free);
+        printf("pstr: %p\n", (void*)p_strings);
+    }
+
+    if(tinydir_open(&vendor_dir, path) == -1) {
+        perror("ERROR: cannot open vendor directory!");
+    }
+
+    else {
+        while(vendor_dir.has_next) {
+            tinydir_file file;
+
+            if(tinydir_readfile(&vendor_dir, &file) == -1)
+                continue;
+
+            if(file.is_dir) {
+                // normal directories (not . and ..)
+                if(!tinydir_is_nav(file)) {
+                    if(depth > 0)
+                        resources_load_dir_recursive(res, depth - 1, file.path);
+                }
+            }
+
+            const char *PRIMITIVES_PREFIX = "primitives/";
+            /*const char *SHADER_PREFIX     = "shaders/";*/
+            const char *TEXTURES_PREFIX    = "textures/";
+
+            if(file.is_reg) {
+                size_t str_len = strlen(file.name) - strlen(file.extension) + 1;
+                if(strcmp(file.extension, "obj") == 0) {
+                    str_len += strlen(PRIMITIVES_PREFIX);
+
+                    char *id = malloc(str_len);
+                    memset(id, '\0', str_len);
+
+                    strncpy(id, PRIMITIVES_PREFIX, strlen(PRIMITIVES_PREFIX));
+                    strncat(id, file.name, strlen(file.name) - strlen(file.extension) - 1);
+
+                    list_append(p_strings, id);
+
+                    resources_load_model_from_obj(res, id, file.path);
+                }
+
+                const char *IMG_FORMATS[] = {
+                    "png", "jpeg", "jpg"
+                };
+
+                for(size_t i = 0; i < arr_size(IMG_FORMATS); i++) {
+                    if(strcmp(file.extension, IMG_FORMATS[i]) != 0)
+                        continue;
+                    // else
+                    
+                    str_len += strlen(TEXTURES_PREFIX);
+                    char *id = malloc(str_len);
+
+                    memset(id, '\0', str_len);
+                    strncpy(id, TEXTURES_PREFIX, strlen(TEXTURES_PREFIX));
+                    strncat(id, file.name, strlen(file.name) - strlen(file.extension) - 1);
+
+                    list_append(p_strings, id);
+
+                    resources_load_tex2d_linear_from_file(res, id, file.path, GL_RGB);
+
+                    break;
+                }
+            }
+
+            if(tinydir_next(&vendor_dir) == -1)
+                perror("ERROR; cannot get next file");
+        }
+    }
+
+    tinydir_close(&vendor_dir);
+}
 

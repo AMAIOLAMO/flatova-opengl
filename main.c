@@ -1,4 +1,3 @@
-#include "cxlist.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -47,14 +46,13 @@ void framebuffer_size_callback(GLFWwindow* p_win, int width, int height) {
     printf("Detected frame buffer size change\n");
 }
 
-typedef struct Pipeline_t {
+typedef struct DefaultPipeline_t {
     GLuint vert_buf;
     GLuint norm_buf;
     GLuint tex_coord_buf;
-    GLuint elem_buf;
 
     GLuint vert_arr;
-} Pipeline;
+} DefaultPipeline;
 
 Camera cam = {
     .pos  = { 0.0f, 0.5f, 3.0f },
@@ -144,11 +142,11 @@ void process_input(GLFWwindow *p_win, float dt) {
     cam.pos[1] += glfw_key_strength(p_win, GLFW_KEY_E, GLFW_KEY_Q) * cam_move_speed * dt;
 }
 
-void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
+void render_grid(Resources resources, const DefaultPipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_grid = (Shader*)resources_find(resources, "shaders/grid");
 
     shader_use(*p_grid); {
-        vertex_bind_load_buffers(
+        vertex_load_buffers(
             get_prim_plane_vertices(), get_prim_plane_vertices_size(),
             pipeline.vert_buf, pipeline.norm_buf, pipeline.tex_coord_buf
         );
@@ -166,23 +164,23 @@ void render_grid(Resources resources, const Pipeline pipeline, Camera *p_cam, ma
 }
 
 
-void render_skybox(Resources resources, const Pipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
-    Shader *p_skybox_shader = (Shader*)resources_find(resources, "shaders/skybox");
-    Model *p_skybox_model   = (Model*)resources_find(resources, "primitives/skybox");
-    GLuint *p_skybox_tex    = (GLuint*)resources_find(resources, "textures/skymap");
+void render_skybox(Resources resources, const DefaultPipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
+    Shader *p_sky_shader = resources_find(resources, "shaders/skybox"   );
+    Model  *p_sky_model  = resources_find(resources, "primitives/skybox");
+    GLuint *p_sky_tex    = resources_find(resources, "textures/skymap_1");
 
-    shader_use(*p_skybox_shader); {
+    shader_use(*p_sky_shader); {
         glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, *p_skybox_tex);
+        glBindTexture(GL_TEXTURE_2D, *p_sky_tex);
 
-        vertex_bind_load_buffers(
-            p_skybox_model->verts, p_skybox_model->verts_count,
+        vertex_load_buffers(
+            p_sky_model->verts, p_sky_model->verts_count,
             pipeline.vert_buf, pipeline.norm_buf, pipeline.tex_coord_buf
         );
 
-        shader_set_uniform_1i(*p_skybox_shader, "skymap", 0);
+        shader_set_uniform_1i(*p_sky_shader, "skymap", 0);
 
-        shader_set_uniform_mat4fv(*p_skybox_shader, "view_proj", view_proj_mat);
+        shader_set_uniform_mat4fv(*p_sky_shader, "view_proj", view_proj_mat);
 
         mat4 local_to_world_mat;
         glm_mat4_identity(local_to_world_mat);
@@ -191,20 +189,15 @@ void render_skybox(Resources resources, const Pipeline pipeline, Camera *p_cam, 
         glm_translate(local_to_world_mat, p_cam->pos);
         glm_scale(local_to_world_mat, (vec3){p_cam->far, p_cam->far, p_cam->far});
 
-        shader_set_uniform_mat4fv(*p_skybox_shader, "model", local_to_world_mat);
+        shader_set_uniform_mat4fv(*p_sky_shader, "model", local_to_world_mat);
 
-        glDrawArrays(GL_TRIANGLES, 0, p_skybox_model->verts_count);
+        glDrawArrays(GL_TRIANGLES, 0, p_sky_model->verts_count);
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, Scene *p_scene,
+void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene *p_scene,
                         Resources resources, FlComponent mesh_render_comp, FlComponent transform_comp) {
-    glClearColor(
-        p_scene->clear_color[0], p_scene->clear_color[1],
-        p_scene->clear_color[2], p_scene->clear_color[3]
-    );
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+    glClear(GL_DEPTH_BUFFER_BIT);
 
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
@@ -239,15 +232,26 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, Scene *p_sce
     while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
         MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_comp);
         Transform *p_transform    = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp);
-
         assert(p_mesh_render);
         assert(p_transform);
 
         const Shader *p_shader = p_mesh_render->p_shader;
         const Model *p_model   = p_mesh_render->p_model;
 
+        GLuint *p_diffuse_texture  = p_mesh_render->p_diffuse_tex;
+        if(p_diffuse_texture == NULL) {
+            p_diffuse_texture = resources_find(resources, "textures/white1x1");
+        }
 
-        vertex_bind_load_buffers(
+        GLuint *p_specular_texture = p_mesh_render->p_specular_tex;
+        if(p_specular_texture == NULL) {
+            p_specular_texture = resources_find(resources, "textures/white1x1");
+        }
+
+        assert(p_diffuse_texture);
+        assert(p_specular_texture);
+
+        vertex_load_buffers(
             p_model->verts,
             p_model->verts_count,
             pipeline.vert_buf, pipeline.norm_buf, pipeline.tex_coord_buf
@@ -256,8 +260,16 @@ void render_scene_frame(GLFWwindow *p_win, const Pipeline pipeline, Scene *p_sce
         shader_use(*p_shader); {
             shader_set_uniform_3f(*p_shader, "light_pos", p_scene->light_pos);
 
-            shader_set_uniform_3f(*p_shader, "material.diffuse", p_mesh_render->albedo_color);
-            shader_set_uniform_3f(*p_shader, "material.specular", p_mesh_render->specular_color);
+            glActiveTexture(GL_TEXTURE0);
+            glBindTexture(GL_TEXTURE_2D, *p_diffuse_texture);
+
+            shader_set_uniform_1i(*p_shader, "material.diffuse", 0);
+
+            glActiveTexture(GL_TEXTURE1);
+            glBindTexture(GL_TEXTURE_2D, *p_specular_texture);
+
+            shader_set_uniform_1i(*p_shader, "material.specular", 1);
+
             shader_set_uniform_1f(*p_shader, "material.specular_factor", p_mesh_render->specular_factor);
 
             shader_set_uniform_3f(*p_shader, "material.ambient", p_scene->ambient_color);
@@ -335,80 +347,8 @@ int fl_glfw_init(GLFWwindow **pp_win) {
     return true;
 }
 
-// checks whether or not a directory is a special navigation(. and ..)
-int tinydir_is_nav(const tinydir_file file) {
-    return file.is_dir && (
-        strcmp(file.name, ".") == 0 || strcmp(file.name, "..") == 0
-    );
-}
-
-typedef struct ResIdStrings_t {
-    size_t len, cap;
-    char **data;
-} ResIdStrings;
-
-void resources_unload_idstrings(ResIdStrings *p_strs) {
-    for(size_t i = 0; i < p_strs->len; i++) {
-        free(p_strs->data[i]);
-    }
-    list_free(p_strs);
-}
-
-// TODO: maybe allocate this alloc strings inside of resources itself?
-void resources_load_dir_recursive(Resources res, size_t depth, const char *path, ResIdStrings *p_alloc_strings) {
-    tinydir_dir vendor_dir = {0};
-
-    if(tinydir_open(&vendor_dir, path) == -1) {
-        perror("ERROR: cannot open vendor directory!");
-    }
-    else {
-        while(vendor_dir.has_next) {
-            tinydir_file file;
-            if(tinydir_readfile(&vendor_dir, &file) == -1)
-                continue;
-
-            if(file.is_dir) {
-                // normal directories (not . and ..)
-                if(!tinydir_is_nav(file)) {
-                    if(depth > 0)
-                        resources_load_dir_recursive(res, depth - 1, file.path, p_alloc_strings);
-                }
-            }
-
-            const char *PRIMITIVES_PREFIX = "primitives/";
-            /*const char *SHADER_PREFIX     = "shaders/";*/
-            /*const char *TEXTURE_PREFIX    = "textures/";*/
-
-            if(file.is_reg) {
-                if(strcmp(file.extension, "obj") == 0) {
-                    size_t str_len = strlen(PRIMITIVES_PREFIX) + strlen(file.name) - strlen(file.extension) + 1;
-                    char *id = malloc(str_len);
-
-                    memset(id, '\0', str_len);
-                    strncpy(id, PRIMITIVES_PREFIX, strlen(PRIMITIVES_PREFIX));
-                    strncpy(id + strlen(PRIMITIVES_PREFIX), file.name, strlen(file.name) - strlen(file.extension) - 1);
-
-                    list_append(p_alloc_strings, id);
-
-                    resources_load_model_from_obj(res, id, file.path);
-                    printf("OBJ: %s -> %s ext: %s", file.name, file.path, file.extension);
-                }
-            }
-
-
-            printf("\n");
-
-            if(tinydir_next(&vendor_dir) == -1)
-                perror("ERROR; cannot get next file");
-
-        }
-    }
-
-    tinydir_close(&vendor_dir);
-}
-
 int main(void) {
-    const size_t TBL_ENTITY_COUNT = 100;
+    const size_t TBL_ENTITY_COUNT    = 100;
     const size_t TBL_COMPONENT_COUNT = 32;
 
     FlEcsCtx ecs_ctx = fl_ecs_ctx_create(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
@@ -428,11 +368,6 @@ int main(void) {
     char cwd_path[512];
     getcwd(cwd_path, arr_size(cwd_path));
     printf("running on working directory: %s\n", cwd_path);
-
-    // loop through contents in vendor
-    const size_t DIR_DEPTH = 5;
-    ResIdStrings load_strings = {0};
-    resources_load_dir_recursive(resources, DIR_DEPTH, TINYDIR_STRING("./vendor"), &load_strings);
 
     GLFWwindow *p_win = NULL;
 
@@ -463,6 +398,10 @@ int main(void) {
 
         resources_store(resources, "fonts/roboto_regular", roboto_regular);
     }
+    
+    // loop through contents in vendor
+    const size_t DIR_DEPTH = 5;
+    resources_load_dir_recursive(resources, DIR_DEPTH, TINYDIR_STRING("./vendor"));
 
 
     // LOAD all shaders in vendor
@@ -519,59 +458,15 @@ int main(void) {
 
     resources_store(resources, "primitives/plane", get_prim_plane_vertices());
 
-    /*resources_load_texture2d_linear_from_file("vendor/skymaps/skymap_1.png", GL_RGB, GL_UNSIGNED_BYTE);*/
-
-    GLuint skymap_tex;
-    if(gl_try_load_texture2d_linear("vendor/skymaps/skymap_1.png", &skymap_tex, GL_RGB) == false) {
-        printf("Error: Failed to load skybox texture!\n");
-        glfwTerminate();
-        return -1;
-    }
-    resources_store(resources, "textures/skymap", &skymap_tex);
-
-    printf("Skybox texture loaded\n");
-
     // create buffers
-    GLuint vert_arr_obj;
-    glGenVertexArrays(1, &vert_arr_obj);
+    // TODO: abstract this into a function, since this is dependent on vertex, it is not the job of the main function
+    VertexPipeline vert_pipeline = vertex_gen_buffer_arrays();
 
-    glBindVertexArray(vert_arr_obj);
-
-
-    GLuint vert_buf_obj;
-    glGenBuffers(1, &vert_buf_obj);
-
-    glBindBuffer(GL_ARRAY_BUFFER, vert_buf_obj);
-    glVertexAttribPointer(0, sizeof(vec3) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, pos));
-
-    GLuint tex_coord_buf_obj;
-    glGenBuffers(1, &tex_coord_buf_obj);
-
-    glBindBuffer(GL_ARRAY_BUFFER, tex_coord_buf_obj);
-    glVertexAttribPointer(1, sizeof(vec2) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coord));
-
-    GLuint normal_buf_obj;
-    glGenBuffers(1, &normal_buf_obj);
-
-    glBindBuffer(GL_ARRAY_BUFFER, normal_buf_obj);
-    glVertexAttribPointer(2, sizeof(vec3) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
-
-    GLuint elem_buf_obj;
-    glGenBuffers(1, &elem_buf_obj);
-
-    glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, elem_buf_obj);
-
-    glEnableVertexAttribArray(0);
-    glEnableVertexAttribArray(1);
-    glEnableVertexAttribArray(2);
-
-    Pipeline pipe = {
-        vert_buf_obj,
-        tex_coord_buf_obj,
-        normal_buf_obj,
-        elem_buf_obj,
-
-        vert_arr_obj
+    DefaultPipeline pipe = {
+        .vert_buf      = vert_pipeline.vert_buf,
+        .vert_arr      = vert_pipeline.vert_arr,
+        .tex_coord_buf = vert_pipeline.tex_coord_buf,
+        .norm_buf      = vert_pipeline.normal_buf
     };
 
     glfwSetCursorPosCallback(p_win, glfw_cursor_callback);
@@ -651,7 +546,6 @@ int main(void) {
 
     scene_free(&scene);
     resources_free(resources);
-    resources_unload_idstrings(&load_strings);
 
     nk_glfw3_shutdown(&nk_glfw);
     glfwTerminate();

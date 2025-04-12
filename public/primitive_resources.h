@@ -22,6 +22,19 @@ Model* resources_load_model_from_obj(
     const char *obj_path
 );
 
+// loads a texture2d resource from an image file path into memory.
+// automatically deallocates when resources_free has been called.
+GLuint* resources_load_tex2d_linear_from_file(
+    Resources resources, const char *identifier,
+    const char *path, GLenum tex_color
+);
+
+typedef struct ResIdStrings_t {
+    size_t len, cap;
+    char **data;
+} ResIdStrings;
+
+void resources_load_dir_recursive(Resources res, size_t depth, const char *path);
 
 #endif // _PRIMITIVE_RESOURCES_H
 

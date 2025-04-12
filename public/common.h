@@ -16,8 +16,9 @@ typedef struct Transform_t {
 typedef struct MeshRender_t {
     const Model *p_model;
     const Shader *p_shader;
-    vec3 albedo_color;
-    vec3 specular_color;
+
+    GLuint *p_diffuse_tex;
+    GLuint *p_specular_tex;
     float specular_factor;
 } MeshRender;
 
@@ -25,6 +26,7 @@ void transform_apply(Transform transform, mat4 applied_mat);
 
 
 typedef struct Scene_t {
+    // TODO: maybe put some of these in Environmental settings?
     /*EnvironmentSettings env_settings;*/
     vec3 light_pos;
 

@@ -8,6 +8,7 @@ uniform mat4 norm_mat;
 uniform mat4 model;
 uniform mat4 view_proj;
 
+out vec2 uv;
 out vec3 norm;
 out vec3 frag_pos;
 
@@ -15,5 +16,6 @@ void main() {
     gl_Position = view_proj * model * vec4(i_pos, 1.0f);
     norm = vec3(norm_mat * vec4(i_norm, 0.0f));
     frag_pos = vec3(model * vec4(i_pos, 1.0f));
+    uv = i_uv;
 }
 

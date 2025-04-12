@@ -38,7 +38,7 @@ const Resource* resources_store(Resources resources, const char *id, void* p_res
 const Resource* resources_store_auto(Resources resources, const char *id, void* p_res, res_free_func_t free_func);
 
 // finds the resource given the id, returns the raw ptr of the resource
-const void* resources_find(Resources resources, const char *id);
+void* resources_find(Resources resources, const char *id);
 
 // iterates through the resources, and returns a resource ptr for each iteration
 b8 resources_iter(Resources resources, size_t *p_iter, Resource **pp_resource);

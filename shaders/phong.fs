@@ -2,14 +2,15 @@
 
 struct Material {
     vec3 ambient;
-    vec3 diffuse;
-    vec3 specular;
+    sampler2D diffuse;
+    sampler2D specular;
     float specular_factor;
 };
 
 uniform Material material;
 uniform vec3 cam_pos;
 
+in vec2 uv;
 in vec3 norm;
 in vec3 frag_pos;
 
@@ -31,15 +32,14 @@ void main() {
     vec3 ambient = light_color * material.ambient * ambient_strength;
 
     // DIFFUSE
-    float diff = max(dot(n, light_dir), 0.0f);
-    vec3 diffuse = light_color * diff * material.diffuse;
-
+    float diff = max(dot(n, light_dir), 0.1f);
+    vec3 diffuse = light_color * diff * texture(material.diffuse, uv).rgb;
 
     // SPECULAR
     vec3 light_to_frag = normalize(frag_pos - light_pos);
     float spec = max(dot(reflect(light_to_frag, n), cam_dir), 0.0f);
     spec = pow(spec, material.specular_factor) * specular_strength;
-    vec3 specular = light_color * material.specular * spec;
+    vec3 specular = light_color * texture(material.specular, uv).rgb * spec;
 
     // RESULT
     vec3 result = ambient + diffuse + specular;
