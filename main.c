@@ -483,12 +483,13 @@ int main(void) {
     };
 
     FlEditorCtx editor_ctx = create_editor_ctx();
-    editor_ctx_register_widget(editor_ctx, "scene hierarchy");
-    editor_ctx_register_widget(editor_ctx, "camera properties");
-    editor_ctx_register_widget(editor_ctx, "resource viewer");
-    editor_ctx_register_widget(editor_ctx, "scene settings");
-    editor_ctx_register_widget(editor_ctx, "file browser");
-    editor_ctx_register_widget(editor_ctx, "entity inspector");
+
+    editor_ctx_register_widget(editor_ctx, "scene hierarchy",   resources_find(resources, "textures/cube"));
+    editor_ctx_register_widget(editor_ctx, "camera properties", resources_find(resources, "textures/camera"));
+    editor_ctx_register_widget(editor_ctx, "resource viewer",   resources_find(resources, "textures/magnify"));
+    editor_ctx_register_widget(editor_ctx, "scene settings",    NULL);
+    editor_ctx_register_widget(editor_ctx, "file browser",      resources_find(resources, "textures/folder"));
+    editor_ctx_register_widget(editor_ctx, "entity inspector",  resources_find(resources, "textures/eye"));
 
     while(!glfwWindowShouldClose(p_win)) {
         float current_time = glfwGetTime();
@@ -499,7 +500,7 @@ int main(void) {
 
         nk_glfw3_new_frame(&nk_glfw);
 
-        render_main_menubar(nk_ctx, p_win, &editor_ctx);
+        render_main_menubar(nk_ctx, p_win, resources, &editor_ctx);
 
         FlEditorComponents comps = {
             .transform = TRANSFORM_ID,

@@ -24,8 +24,8 @@ FlEditorCtx create_editor_ctx(void) {
     return hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL);
 }
 
-void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier) {
-    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .is_open = false});
+void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier, GLuint *p_icon_tex) {
+    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = p_icon_tex, .is_open = false});
 }
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
@@ -37,7 +37,7 @@ b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_ope
     if(!scene_widget)
         return false;
 
-    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .is_open = is_open});
+    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = scene_widget->p_icon_tex, .is_open = is_open});
     return true;
 }
 
@@ -355,7 +355,7 @@ void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene) {
 }
 
 
-void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorCtx *p_editor_ctx) {
+void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources resources, FlEditorCtx *p_editor_ctx) {
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
 
@@ -363,19 +363,34 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorCt
         nk_menubar_begin(p_ctx);
 
         nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 1);
-        nk_layout_row_push(p_ctx, DPI_SCALEY(45));
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
 
-        if (nk_menu_begin_label(
-            p_ctx, "window", NK_TEXT_LEFT,
-            nk_vec2(DPI_SCALEX(140), DPI_SCALEY(200))
+        GLuint *p_icon_tex = resources_find(resources, "textures/wrench");
+        assert(p_icon_tex && "Error: Cannot load icon for main menu bar");
+
+        struct nk_image widgets_icon = nk_image_id(*p_icon_tex);
+
+        if (nk_menu_begin_image_label(
+            p_ctx, "widgets", NK_TEXT_RIGHT, widgets_icon,
+            nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
         )) {
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 1);
 
             size_t iter = 0;
             FlWidgetCtx *p_widget_ctx = NULL;
 
             while(editor_ctx_iter(*p_editor_ctx, &iter, &p_widget_ctx)) {
                 nk_bool is_open = p_widget_ctx->is_open;
+                nk_layout_row_template_begin(p_ctx, DPI_SCALEY(20));
+
+                if(p_widget_ctx->p_icon_tex)
+                    nk_layout_row_template_push_static(p_ctx, DPI_SCALEY(20));
+
+                nk_layout_row_template_push_dynamic(p_ctx);
+                nk_layout_row_template_end(p_ctx);
+
+                if(p_widget_ctx->p_icon_tex)
+                    nk_image(p_ctx, nk_image_id(*p_widget_ctx->p_icon_tex));
+
                 nk_checkbox_label(p_ctx, p_widget_ctx->identifier, &is_open);
                 editor_ctx_set_widget_open(*p_editor_ctx, p_widget_ctx->identifier, is_open);
             }

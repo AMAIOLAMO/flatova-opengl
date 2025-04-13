@@ -15,6 +15,7 @@
 
 typedef struct FlWidgetCtx_t {
     const char *identifier;
+    GLuint *p_icon_tex;
     b8 is_open;
 } FlWidgetCtx;
 
@@ -22,7 +23,7 @@ typedef struct hashmap* FlEditorCtx;
 
 FlEditorCtx create_editor_ctx(void);
 
-void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier);
+void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier, GLuint *p_icon_tex);
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx);
 
@@ -64,7 +65,7 @@ void render_resource_viewer(struct nk_context *p_ctx, Resources resources);
 void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene);
 
 
-void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, FlEditorCtx *p_editor_ctx);
+void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources resources, FlEditorCtx *p_editor_ctx);
 
 void render_file_browser(struct nk_context *p_ctx);
 

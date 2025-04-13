@@ -144,7 +144,7 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
 
                     list_append(p_strings, id);
 
-                    resources_load_tex2d_linear_from_file(res, id, file.path, GL_RGB);
+                    resources_load_tex2d_linear_from_file(res, id, file.path, GL_RGBA);
 
                     break;
                 }
