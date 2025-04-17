@@ -33,6 +33,9 @@ FlComponent fl_ecs_add_component(FlEcsCtx *p_ctx, size_t component_bytes_size);
 
 void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component, b8 active);
 
+// Iterates through all the entities
+b8 fl_ecs_iter(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity);
+
 b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity, FlComponent *components, size_t components_size);
 
 FlEntity fl_ecs_entity_add(FlEcsCtx *p_ctx);

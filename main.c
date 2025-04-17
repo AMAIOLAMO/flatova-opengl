@@ -1,3 +1,4 @@
+#include "cglm/vec3.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -196,7 +197,7 @@ void render_skybox(Resources resources, const DefaultPipeline pipeline, Camera *
 }
 
 void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene *p_scene,
-                        Resources resources, FlComponent mesh_render_comp, FlComponent transform_comp) {
+                        Resources resources, FlEditorComponents comps) {
     glClear(GL_DEPTH_BUFFER_BIT);
 
     int width, height;
@@ -225,13 +226,31 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
     size_t iter = 0;
     FlEntity entity;
 
+    FlComponent transform_comp = comps.transform;
+    FlComponent mesh_render_comp = comps.mesh_render;
+    FlComponent dir_light_comp = comps.dir_light;
+
+    vec3 global_light_dir = {0.0, 0.0, 0.0};
+    vec3 global_light_color = {0.0, 0.0, 0.0};
+
+    while(fl_ecs_query(p_ecs_ctx, &iter, &entity, &dir_light_comp, 1)) {
+        FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_comp);
+
+        glm_vec3_copy(p_dir_light->direction, global_light_dir);
+        glm_vec3_normalize(global_light_dir);
+
+        glm_vec3_copy(p_dir_light->color, global_light_color);
+        break;
+    }
+
+    iter = 0;
     FlComponent query_components[] = {
         transform_comp, mesh_render_comp
     };
 
     while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
-        MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_comp);
-        Transform *p_transform    = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp);
+        FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_comp);
+        FlTransform *p_transform    = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp);
         assert(p_mesh_render);
         assert(p_transform);
 
@@ -258,7 +277,8 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         );
 
         shader_use(*p_shader); {
-            shader_set_uniform_3f(*p_shader, "light_pos", p_scene->light_pos);
+            shader_set_uniform_3f(*p_shader, "dir_light.dir", global_light_dir);
+            shader_set_uniform_3f(*p_shader, "dir_light.color", global_light_color);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, *p_diffuse_texture);
@@ -316,7 +336,12 @@ int fl_glfw_init(GLFWwindow **pp_win) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-    GLFWwindow *p_win = glfwCreateWindow(1000, 900, "Flatova", NULL, NULL);
+    const GLFWvidmode *primary = glfwGetVideoMode(glfwGetPrimaryMonitor());
+
+    GLFWwindow *p_win = glfwCreateWindow(
+        primary->width, primary->height, "Flatova", NULL, NULL
+    );
+
     *pp_win = p_win;
 
     if(p_win == NULL) {
@@ -354,11 +379,15 @@ int main(void) {
     FlEcsCtx ecs_ctx = fl_ecs_ctx_create(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
 
     const FlComponent TRANSFORM_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(Transform)
+        &ecs_ctx, sizeof(FlTransform)
     );
 
     const FlComponent MESH_RENDER_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(MeshRender)
+        &ecs_ctx, sizeof(FlMeshRender)
+    );
+
+    const FlComponent DIR_LIGHT_ID = fl_ecs_add_component(
+        &ecs_ctx, sizeof(FlDirLight)
     );
 
     NFD_Init();
@@ -503,8 +532,9 @@ int main(void) {
         render_main_menubar(nk_ctx, p_win, resources, &editor_ctx);
 
         FlEditorComponents comps = {
-            .transform = TRANSFORM_ID,
-            .mesh_render = MESH_RENDER_ID
+            .transform   = TRANSFORM_ID,
+            .mesh_render = MESH_RENDER_ID,
+            .dir_light   = DIR_LIGHT_ID
         };
 
         static FlEntity chosen_entity = 0;
@@ -531,7 +561,7 @@ int main(void) {
 
 
         // RENDERING
-        render_scene_frame(p_win, pipe, &scene, resources, MESH_RENDER_ID, TRANSFORM_ID);
+        render_scene_frame(p_win, pipe, &scene, resources, comps);
 
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;

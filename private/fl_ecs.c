@@ -67,10 +67,21 @@ void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlCompon
     p_ctx->table[fl_ecs_get_table_idx(p_ctx, entity, component)] = active;
 }
 
+b8 fl_ecs_iter(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity) {
+    while(*p_iter < p_ctx->entity_count) {
+        *p_entity = *p_iter; // TODO: coincidence? should we simplify this?
+
+        *p_iter += 1;
+        return true;
+    }
+
+    return false;
+}
+
 b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity, FlComponent *components, size_t components_size) {
     // checking each and individual entity
 
-    while(*p_iter < p_ctx->entity_cap) {
+    while(*p_iter < p_ctx->entity_count) {
         b8 has_all_components = true;
 
         // check if the current component has all the required components

@@ -104,10 +104,10 @@ void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float
     }
 }
 
-void render_combo_color_picker_vec4(struct nk_context *p_ctx, vec4 *p_color) {
+void fl_combo_color_picker_vec4(struct nk_context *p_ctx, vec4 *p_color) {
     struct nk_colorf nk_obj_color = { (*p_color)[0], (*p_color)[1], (*p_color)[2], (*p_color)[3] };
 
-    render_combo_color_picker(p_ctx, &nk_obj_color);
+    fl_combo_color_picker(p_ctx, &nk_obj_color);
 
     (*p_color)[0] = nk_obj_color.r;
     (*p_color)[1] = nk_obj_color.g;
@@ -115,17 +115,17 @@ void render_combo_color_picker_vec4(struct nk_context *p_ctx, vec4 *p_color) {
     (*p_color)[3] = nk_obj_color.a;
 }
 
-void render_combo_color_picker_vec3(struct nk_context *p_ctx, vec3 *p_color) {
+void fl_combo_color_picker_vec3(struct nk_context *p_ctx, vec3 *p_color) {
     struct nk_colorf nk_obj_color = { (*p_color)[0], (*p_color)[1], (*p_color)[2], 1.0f };
 
-    render_combo_color_picker(p_ctx, &nk_obj_color);
+    fl_combo_color_picker(p_ctx, &nk_obj_color);
 
     (*p_color)[0] = nk_obj_color.r;
     (*p_color)[1] = nk_obj_color.g;
     (*p_color)[2] = nk_obj_color.b;
 }
 
-void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) {
+void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) {
     if (nk_combo_begin_color(
         p_ctx, nk_rgb_cf(*p_color),
         nk_vec2(DPI_SCALEX(200), DPI_SCALEY(400))
@@ -172,37 +172,55 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         nk_menubar_begin(p_ctx);
 
         nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 3);
-        nk_layout_row_push(p_ctx, DPI_SCALEX(25));
+        nk_layout_row_push(p_ctx, DPI_SCALEX(35));
 
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
         const FlComponent transform_id = p_comps->transform;
         const FlComponent mesh_render_id = p_comps->mesh_render;
+        const FlComponent dir_light_id = p_comps->dir_light;
 
-        if(nk_button_label(p_ctx, "+")) {
-            // TODO: the UI should not have the power to modify entities directly
-            const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
+        if (nk_menu_begin_label(p_ctx, "Add +", NK_TEXT_LEFT, nk_vec2(DPI_SCALEX(110),DPI_SCALEY(120))))
+        {
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
 
-            Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
-            *p_transform = (Transform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
+            if(nk_menu_item_label(p_ctx, "Object", NK_TEXT_LEFT)) {
+                const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
 
-            MeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id);
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
+                *p_transform = (FlTransform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
 
-            fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
-            fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
+                FlMeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id);
 
-            Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
 
-            GLuint *p_diffuse_texture  = resources_find(resources, "textures/white1x1");
-            assert(p_diffuse_texture);
+                Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
 
-            GLuint *p_specular_texture = resources_find(resources, "textures/white1x1");
-            assert(p_specular_texture);
+                GLuint *p_diffuse_texture  = resources_find(resources, "textures/white1x1");
+                assert(p_diffuse_texture);
 
-            *p_render = (MeshRender){
-                .p_model = p_model, .p_shader = p_phong,
-                .p_specular_tex = p_specular_texture, .p_diffuse_tex = p_diffuse_texture, .specular_factor = 32.0f
-            };
+                GLuint *p_specular_texture = resources_find(resources, "textures/white1x1");
+                assert(p_specular_texture);
+
+                *p_render = (FlMeshRender){
+                    .p_model = p_model, .p_shader = p_phong,
+                    .p_specular_tex = p_specular_texture, .p_diffuse_tex = p_diffuse_texture, .specular_factor = 32.0f
+                };
+            }
+
+            if(nk_menu_item_label(p_ctx, "Directional Light", NK_TEXT_LEFT)) {
+                const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, dir_light_id, true);
+
+                FlDirLight *p_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_id);
+                *p_light = (FlDirLight) {
+                    .direction = {0.0f, -1.0f, 0.0f},
+                    .color = {1.0f, 1.0f, 1.0f}
+                };
+            }
+
+            nk_menu_end(p_ctx);
         }
 
         nk_layout_row_push(p_ctx, DPI_SCALEX(120));
@@ -217,16 +235,11 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         size_t iter = 0;
         FlEntity entity;
 
-        FlComponent query_components[] = {
-            transform_id
-        };
-
-
         // TODO: instead of checking specifically components, we just loop and allowing choosing of entities
         if (nk_tree_push(p_ctx, NK_TREE_NODE, "Entities", NK_MINIMIZED)) {
 
             char txt_buf[256] = {0};
-            while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
+            while(fl_ecs_iter(p_ecs_ctx, &iter, &entity)) {
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
                 snprintf(txt_buf, arr_size(txt_buf), "[%zu] Entity", entity);
 
@@ -346,10 +359,10 @@ void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene) {
 
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
         nk_label(p_ctx, "Clear Color", NK_TEXT_LEFT);
-        render_combo_color_picker_vec4(p_ctx, &p_scene->clear_color);
+        fl_combo_color_picker_vec4(p_ctx, &p_scene->clear_color);
 
         nk_label(p_ctx, "Ambient Color", NK_TEXT_LEFT);
-        render_combo_color_picker_vec3(p_ctx, &p_scene->ambient_color);
+        fl_combo_color_picker_vec3(p_ctx, &p_scene->ambient_color);
     }
     nk_end(p_ctx);
 }
@@ -465,7 +478,7 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
             // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
             // RENDER TRANSFORM
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, transform_id)) {
-                Transform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
                 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
                 fl_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
@@ -477,7 +490,7 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
             // RENDER MESH RENDER
             const FlComponent mesh_render_id = p_comps->mesh_render;
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
-                MeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
+                FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
 
                 const char *models[30] = {0};
 
@@ -526,6 +539,18 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
                 nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
+            }
+
+            const FlComponent dir_light_id = p_comps->dir_light;
+            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, dir_light_id)) {
+                FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, dir_light_id);
+
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
+                fl_xyz_widget(p_ctx, "Direction", p_dir_light->direction, -1, 1);
+
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 2);
+                nk_label(p_ctx, "Color", NK_TEXT_LEFT);
+                fl_combo_color_picker_vec3(p_ctx, &p_dir_light->color);
             }
         }
     }

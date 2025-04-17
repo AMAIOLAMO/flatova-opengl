@@ -34,7 +34,7 @@ b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier);
 void editor_ctx_free(FlEditorCtx ctx);
 
 typedef struct FlEditorComponents_t {
-    FlComponent transform, mesh_render;
+    FlComponent transform, mesh_render, dir_light;
 } FlEditorComponents;
 
 typedef struct FlScaling_t {
@@ -50,7 +50,7 @@ float g_scaling_y(float yscale);
 
 void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float min, float max);
 
-void render_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color);
+void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color);
 
 // hierarchy
 void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,

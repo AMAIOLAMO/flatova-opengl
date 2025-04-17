@@ -9,20 +9,25 @@
 #include <fl_ecs.h>
 #include <camera.h>
 
-typedef struct Transform_t {
+typedef struct FlTransform_t {
     vec3 pos, rot, scale;
-} Transform;
+} FlTransform;
 
-typedef struct MeshRender_t {
+typedef struct FlMeshRender_t {
     const Model *p_model;
     const Shader *p_shader;
 
     GLuint *p_diffuse_tex;
     GLuint *p_specular_tex;
     float specular_factor;
-} MeshRender;
+} FlMeshRender;
 
-void transform_apply(Transform transform, mat4 applied_mat);
+typedef struct FlDirLight_t {
+    vec3 direction;
+    vec3 color;
+} FlDirLight;
+
+void transform_apply(FlTransform transform, mat4 applied_mat);
 
 
 typedef struct Scene_t {
