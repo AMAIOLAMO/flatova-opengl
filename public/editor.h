@@ -6,6 +6,7 @@
 
 #include <camera.h>
 
+#define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_VARARGS
 #include <nuklear.h>
 #include <resources.h>
