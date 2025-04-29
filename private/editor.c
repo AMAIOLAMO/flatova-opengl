@@ -21,34 +21,36 @@ static uint64_t fl_widget_ctx_hash(const void *item, uint64_t seed0, uint64_t se
 }
 
 FlEditorCtx create_editor_ctx(void) {
-    return hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL);
+    return (FlEditorCtx) {
+        .widgets = hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL),
+    };
 }
 
 void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier, GLuint *p_icon_tex) {
-    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = p_icon_tex, .is_open = false});
+    hashmap_set(ctx.widgets, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = p_icon_tex, .is_open = false});
 }
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
-    return hashmap_iter(ctx, p_iter, (void**)pp_widget_ctx);
+    return hashmap_iter(ctx.widgets, p_iter, (void**)pp_widget_ctx);
 }
 
 b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx, &(FlWidgetCtx){ .identifier = identifier });
+    const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .identifier = identifier });
     if(!scene_widget)
         return false;
 
-    hashmap_set(ctx, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = scene_widget->p_icon_tex, .is_open = is_open});
+    hashmap_set(ctx.widgets, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = scene_widget->p_icon_tex, .is_open = is_open});
     return true;
 }
 
 b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx, &(FlWidgetCtx){ .identifier = identifier });
+    const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .identifier = identifier });
     
     return scene_widget && scene_widget->is_open;
 }
 
 void editor_ctx_free(FlEditorCtx ctx) {
-    hashmap_free(ctx);
+    hashmap_free(ctx.widgets);
 }
 
 
@@ -90,18 +92,12 @@ const float HUGE_VALUEF = 9999999999.0f;
 
 void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float min, float max) {
     assert(min <= max && "the min value should always be smaller or equal to the max value");
-    nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
 
-    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(50), 1);
-
-    if (nk_group_begin(p_ctx, name, group_flags)) {
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(18), 3);
-        nk_property_float(p_ctx, "#x:", min, &p_pos[0], max, 0.1f, 0.2f);
-        nk_property_float(p_ctx, "#y:", min, &p_pos[1], max, 0.1f, 0.2f);
-        nk_property_float(p_ctx, "#z:", min, &p_pos[2], max, 0.1f, 0.2f);
-
-        nk_group_end(p_ctx);
-    }
+    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(18), 4);
+    nk_label(p_ctx, name, NK_TEXT_LEFT);
+    nk_property_float(p_ctx, "#x:", min, &p_pos[0], max, 0.1f, 0.2f);
+    nk_property_float(p_ctx, "#y:", min, &p_pos[1], max, 0.1f, 0.2f);
+    nk_property_float(p_ctx, "#z:", min, &p_pos[2], max, 0.1f, 0.2f);
 }
 
 void fl_combo_color_picker_vec4(struct nk_context *p_ctx, vec4 *p_color) {
@@ -455,7 +451,6 @@ void* resources_filtered_combo_selection(
         }
     }
 
-    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
     selected = nk_combo(p_ctx, list, list_size, selected, DPI_SCALEY(15), nk_vec2(DPI_SCALEX(300), DPI_SCALEY(200)));
 
     return resources_find(res, list[selected]);
@@ -474,10 +469,14 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
         // it is a valid entity
         if(p_ecs_ctx->entity_count > 0 && (*p_chosen_entity) < p_ecs_ctx->entity_count) {
             const FlComponent transform_id = p_comps->transform;
+            nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
 
             // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
             // RENDER TRANSFORM
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, transform_id)) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(100), 1);
+
+                nk_group_begin(p_ctx, "Transform", group_flags);
                 FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
                 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
@@ -485,15 +484,22 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 fl_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
                 fl_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+                nk_group_end(p_ctx);
             }
 
             // RENDER MESH RENDER
             const FlComponent mesh_render_id = p_comps->mesh_render;
             if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(350), 1);
+
+                nk_group_begin(p_ctx, "Mesh Render", group_flags);
+
                 FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
 
                 const char *models[30] = {0};
 
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+                nk_label(p_ctx, "Model:", NK_TEXT_LEFT);
                 Model *p_chose_model = resources_filtered_combo_selection(
                     resources, p_ctx, p_mesh_render->p_model, models, arr_size(models), res_filter_combo_primitives
                 );
@@ -505,6 +511,8 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                 // TODO: requires fall back texture
                 const char *textures[30] = {0};
 
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+                nk_label(p_ctx, "Diffuse Map:", NK_TEXT_LEFT);
                 GLuint *p_diffuse_tex = resources_filtered_combo_selection(
                     resources, p_ctx, p_mesh_render->p_diffuse_tex, textures, arr_size(textures), res_filter_combo_textures
                 );
@@ -513,14 +521,15 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 assert(p_mesh_render->p_diffuse_tex);
                 struct nk_image diffuse_map = nk_image_id(*p_mesh_render->p_diffuse_tex);
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
-                nk_label(p_ctx, "Diffuse Map:", NK_TEXT_LEFT);
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
 
                 nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
                 nk_layout_row_push(p_ctx, DPI_SCALEX(50));
                 nk_image(p_ctx, diffuse_map);
                 nk_layout_row_end(p_ctx);
 
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+                nk_label(p_ctx, "Specular Map:", NK_TEXT_LEFT);
                 GLuint *p_specular_tex = resources_filtered_combo_selection(
                     resources, p_ctx, p_mesh_render->p_specular_tex, textures, arr_size(textures), res_filter_combo_textures
                 );
@@ -529,8 +538,6 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 assert(p_mesh_render->p_specular_tex);
                 struct nk_image specular_map = nk_image_id(*p_mesh_render->p_specular_tex);
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
-                nk_label(p_ctx, "Specular Map:", NK_TEXT_LEFT);
 
                 nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
                 nk_layout_row_push(p_ctx, DPI_SCALEX(50));
@@ -539,6 +546,8 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
                 nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
+
+                nk_group_end(p_ctx);
             }
 
             const FlComponent dir_light_id = p_comps->dir_light;
@@ -552,6 +561,11 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                 nk_label(p_ctx, "Color", NK_TEXT_LEFT);
                 fl_combo_color_picker_vec3(p_ctx, &p_dir_light->color);
             }
+        }
+        else {
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
+            nk_label(p_ctx, "Select an Entity in the Scene Hierarchy", NK_TEXT_CENTERED);
+            nk_label(p_ctx, "to view their components!", NK_TEXT_CENTERED);
         }
     }
     nk_end(p_ctx);

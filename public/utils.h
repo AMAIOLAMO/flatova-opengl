@@ -53,5 +53,6 @@ b8 gl_try_load_texture2d_nearest(const char *file_path, GLuint *p_tex, GLenum te
 // X -> Y -> Z (parent to child relation, where Z is the most inner children)
 void euler_radians_transform_xyz(vec3 euler_rads, mat4 applied_mat);
 
+float clampf(float val, float min, float max);
 
 #endif // _UTILS_H

@@ -1,4 +1,3 @@
-#include "cglm/vec3.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -18,6 +17,8 @@
 #define NK_INCLUDE_DEFAULT_FONT
 #include <nuklear.h>
 #include <nuklear_glfw_gl3.h>
+
+#include <stb_image.h>
 
 #include <nfd.h>
 #include <tinydir.h>
@@ -94,14 +95,10 @@ void glfw_cursor_callback(GLFWwindow *p_win, double x, double y) {
         last_x = x;
         last_y = y;
 
-        cam.h_rot += offset_x * cam_settings.sensitivity;
+        cam.h_rot += offset_x  * cam_settings.sensitivity;
         cam.v_rot += -offset_y * cam_settings.sensitivity;
 
-        if(cam.v_rot > cam_settings.max_vrot)
-            cam.v_rot = cam_settings.max_vrot;
-
-        if(cam.v_rot < -cam_settings.max_vrot)
-            cam.v_rot = -cam_settings.max_vrot;
+        cam.v_rot = clampf(cam.v_rot, -cam_settings.max_vrot, cam_settings.max_vrot);
 
         return;
     }
@@ -431,6 +428,15 @@ int main(void) {
     // loop through contents in vendor
     const size_t DIR_DEPTH = 5;
     resources_load_dir_recursive(resources, DIR_DEPTH, TINYDIR_STRING("./vendor"));
+
+    GLFWimage img = {0};
+    
+    int nchannels;
+    img.pixels = stbi_load("fl_logo_iter1.png", &img.width, &img.height, &nchannels, 0);
+
+    glfwSetWindowIcon(p_win, 1, &img);
+
+    stbi_image_free(img.pixels);
 
 
     // LOAD all shaders in vendor

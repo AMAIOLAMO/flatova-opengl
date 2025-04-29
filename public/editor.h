@@ -19,7 +19,9 @@ typedef struct FlWidgetCtx_t {
     b8 is_open;
 } FlWidgetCtx;
 
-typedef struct hashmap* FlEditorCtx;
+typedef struct FlEditorCtx_t {
+    struct hashmap *widgets;
+} FlEditorCtx;
 
 FlEditorCtx create_editor_ctx(void);
 
