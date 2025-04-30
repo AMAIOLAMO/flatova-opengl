@@ -3,15 +3,19 @@ HIGH:
 - rewrite the model loading to allow them to load triangulated meshes instead (ignoring any other type of mesh, and or triangulation)
 - write a makefile for others to initialize the project easily,
     especially for meson compile -C build, meson clean and meson setup build for compilation
+- Make Add button more obvious
+- Allow deletion of entities (requires hashmap indirection pointing towards the table)
 
 MID:
 - UI scaling is inconsistent with different DPIs (allow customized scaling?)
     - Maybe allow the user to tone up the scaling of the window using arguments? its much easier that way
 - Render the scene in a separate window (Requires Frame buffers and render textures) call it Viewport
 - simplistic gizmos implementation, or blender like short cut controls (g for grab, r for rotate, etc etc)
+- Customize keybinds (Allow a settings)
 
 LOW:
 - UI's default position should be scaled based on anchor position
+- create an action undo and redo system
 
 UNKNOWN:
 

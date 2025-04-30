@@ -274,7 +274,7 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         );
 
         shader_use(*p_shader); {
-            shader_set_uniform_3f(*p_shader, "dir_light.dir", global_light_dir);
+            shader_set_uniform_3f(*p_shader, "dir_light.dir",   global_light_dir);
             shader_set_uniform_3f(*p_shader, "dir_light.color", global_light_color);
 
             glActiveTexture(GL_TEXTURE0);
