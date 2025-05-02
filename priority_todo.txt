@@ -1,9 +1,8 @@
 HIGH:
 - Mouse scrolling camera speed up (Display in engine directly)
 - Allow deletion of entities (requires hashmap indirection pointing towards the table)
-- Load images by default to be nearest
 - Entities with mesh render should be able to render with a selection outline
-- simplistic gizmos implementation, or blender like short cut controls (g for grab, r for rotate, etc etc)
+- simplistic gizmos implementation, or blender like short cut controls ([X]g for grab, r for rotate, etc etc)
 
 
 
@@ -30,6 +29,7 @@ UNKNOWN:
 ---
 
 COMPLETE:
+- [X] Load images by default to be nearest
 - [X] rewrite the model loading to allow them to load triangulated meshes instead (ignoring any other type of mesh, and or triangulation)
 - [X] write a makefile for others to initialize the project easily,
     especially for meson compile -C build, meson clean and meson setup build for compilation

@@ -23,6 +23,7 @@ static uint64_t fl_widget_ctx_hash(const void *item, uint64_t seed0, uint64_t se
 FlEditorCtx create_editor_ctx(void) {
     return (FlEditorCtx) {
         .widgets = hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL),
+        .mode = FL_EDITOR_VIEW
     };
 }
 

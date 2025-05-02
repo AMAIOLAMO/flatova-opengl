@@ -22,12 +22,18 @@ Model* resources_load_model_from_obj(
     const char *obj_path
 );
 
-// loads a texture2d resource from an image file path into memory.
+// loads a texture2d resource from an image file path into memory and apply linear filter.
 // automatically deallocates when resources_free has been called.
 GLuint* resources_load_tex2d_linear_from_file(
     Resources resources, const char *identifier,
     const char *path, GLenum tex_color
 );
+
+// loads a texture2d resource from an image file path into memory and apply nearest filter.
+// automatically deallocates when resources_free has been called.
+GLuint* resources_load_tex2d_nearest_from_file(
+    Resources resources, const char *identifier,
+    const char *path, GLenum tex_color);
 
 typedef struct ResIdStrings_t {
     size_t len, cap;

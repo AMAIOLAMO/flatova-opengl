@@ -60,6 +60,20 @@ GLuint* resources_load_tex2d_linear_from_file(Resources resources, const char *i
     return p_tex;
 }
 
+GLuint* resources_load_tex2d_nearest_from_file(Resources resources, const char *identifier,
+                                             const char *path, GLenum tex_color) {
+    GLuint *p_tex = malloc(sizeof(GLuint));
+
+    if(gl_try_load_texture2d_nearest(path, p_tex, tex_color) == false) {
+        free(p_tex);
+
+        return NULL;
+    }
+
+    resources_store_auto(resources, identifier, p_tex, res_texture2d_free);
+    return p_tex;
+}
+
 
 void resources_idstrings_free(void *p_raw) {
     ResIdStrings *p_strs = p_raw;
@@ -144,7 +158,7 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
 
                     list_append(p_strings, id);
 
-                    resources_load_tex2d_linear_from_file(res, id, file.path, GL_RGBA);
+                    resources_load_tex2d_nearest_from_file(res, id, file.path, GL_RGBA);
 
                     break;
                 }

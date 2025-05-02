@@ -1,3 +1,4 @@
+#include "cglm/vec3.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -544,6 +545,66 @@ int main(void) {
         };
 
         static FlEntity chosen_entity = 0;
+        static vec3 original_location;
+        static double orig_grab_x, orig_grab_y;
+
+        if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && editor_ctx.mode != FL_EDITOR_GRAB) {
+
+            // TODO: fl_ecs_valid_entity should be created and replaced instead of the callee knowing how to check it
+            if(chosen_entity < ecs_ctx.entity_cap &&
+                fl_ecs_entity_has_component(&ecs_ctx, chosen_entity, TRANSFORM_ID)) {
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, chosen_entity, TRANSFORM_ID);
+
+                glfwGetCursorPos(p_win, &orig_grab_x, &orig_grab_y);
+                
+                editor_ctx.mode = FL_EDITOR_GRAB;
+                glm_vec3_copy(p_transform->pos, original_location);
+
+                printf("Editor Mode Enter: Grab\n");
+                fflush(stdout);
+            }
+
+        }
+
+        if(editor_ctx.mode == FL_EDITOR_GRAB) {
+            const float GRAB_UNIT_MULTIPLIER = 0.001f;
+            vec3 right, up;
+            camera_right(cam, right);
+            camera_up(cam, up);
+
+            static double new_grab_x, new_grab_y;
+            glfwGetCursorPos(p_win, &new_grab_x, &new_grab_y);
+
+            vec2 grab_diff = {
+                new_grab_x - orig_grab_x,
+                new_grab_y - orig_grab_y
+            };
+
+            vec3 offset;
+            glm_vec3_zero(offset);
+            glm_vec3_scale(right, grab_diff[0] * GRAB_UNIT_MULTIPLIER, right);
+            glm_vec3_scale(up,    -grab_diff[1] * GRAB_UNIT_MULTIPLIER, up);
+
+            glm_vec3_add(offset, right, offset);
+            glm_vec3_add(offset, up, offset);
+
+
+            if(chosen_entity < ecs_ctx.entity_cap &&
+                fl_ecs_entity_has_component(&ecs_ctx, chosen_entity, TRANSFORM_ID)) {
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, chosen_entity, TRANSFORM_ID);
+            
+                glm_vec3_copy(original_location, p_transform->pos);
+                glm_vec3_add(offset, p_transform->pos, p_transform->pos);
+
+            }
+
+            if(glfwGetMouseButton(p_win, GLFW_MOUSE_BUTTON_LEFT)) {
+                editor_ctx.mode = FL_EDITOR_VIEW;
+
+                printf("Applying transform\n");
+            }
+        }
+
 
         if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
             render_scene_hierarchy(nk_ctx, &scene, &comps, resources, &chosen_entity);

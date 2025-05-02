@@ -20,8 +20,13 @@ typedef struct FlWidgetCtx_t {
     b8 is_open;
 } FlWidgetCtx;
 
+typedef enum FlEditorMode_t {
+    FL_EDITOR_VIEW, FL_EDITOR_GRAB
+} FlEditorMode;
+
 typedef struct FlEditorCtx_t {
     struct hashmap *widgets;
+    FlEditorMode mode;
 } FlEditorCtx;
 
 FlEditorCtx create_editor_ctx(void);
