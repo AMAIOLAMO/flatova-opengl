@@ -1,19 +1,31 @@
 HIGH:
-- Mouse scrolling camera speed up
+- Mouse scrolling camera speed up (Display in engine directly)
 - Allow deletion of entities (requires hashmap indirection pointing towards the table)
+- Load images by default to be nearest
+- Entities with mesh render should be able to render with a selection outline
+- simplistic gizmos implementation, or blender like short cut controls (g for grab, r for rotate, etc etc)
+
+
 
 MID:
 - UI scaling is inconsistent with different DPIs (allow customized scaling?)
     - Maybe allow the user to tone up the scaling of the window using arguments? its much easier that way
 - Render the scene in a separate window (Requires Frame buffers and render textures) call it Viewport
-- simplistic gizmos implementation, or blender like short cut controls (g for grab, r for rotate, etc etc)
-- Customize keybinds (Allow a settings)
+- Customize keybinds (Allow setting keybind map[reference from other engines?])
+- Add categories in resources, load resources by type
+- Simple Shadow map implementation
+- instead of using booleans for ECS, utilize unsigned long instead, so around 64 components to be used
+
+
 
 LOW:
-- UI's default position should be scaled based on anchor position
+- UI's default position should be scaled based on anchor position (Add an anchor scaling based on screen size)
 - create an action undo and redo system
 
+
+
 UNKNOWN:
+
 
 ---
 
