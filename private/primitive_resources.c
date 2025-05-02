@@ -33,7 +33,7 @@ Model* resources_load_model_from_obj(
     Resources resources, const char *identifier,
     const char *obj_path
 ) {
-    Model *p_model = load_model_obj(obj_path);
+    Model *p_model = load_model_obj_tri(obj_path);
     if(p_model)
         resources_store_auto(resources, identifier, p_model, res_model_free);
 

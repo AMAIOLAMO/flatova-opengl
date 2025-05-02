@@ -12,9 +12,9 @@ typedef struct Model_t {
     u32 elem_count;
 } Model;
 
-// loads a wavefront obj model from the given path.
+// loads a triangulated wavefront obj model from the given path.
 // free the model using "model_free"
-Model* load_model_obj(const char *path);
+Model* load_model_obj_tri(const char *path);
 
 // frees the model
 void model_free(Model *p_model);

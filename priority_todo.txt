@@ -1,9 +1,5 @@
 HIGH:
 - Mouse scrolling camera speed up
-- rewrite the model loading to allow them to load triangulated meshes instead (ignoring any other type of mesh, and or triangulation)
-- write a makefile for others to initialize the project easily,
-    especially for meson compile -C build, meson clean and meson setup build for compilation
-- Make Add button more obvious
 - Allow deletion of entities (requires hashmap indirection pointing towards the table)
 
 MID:
@@ -19,3 +15,10 @@ LOW:
 
 UNKNOWN:
 
+---
+
+COMPLETE:
+- [X] rewrite the model loading to allow them to load triangulated meshes instead (ignoring any other type of mesh, and or triangulation)
+- [X] write a makefile for others to initialize the project easily,
+    especially for meson compile -C build, meson clean and meson setup build for compilation
+- [X] Make Add button more obvious

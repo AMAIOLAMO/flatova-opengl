@@ -158,6 +158,8 @@ void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) 
     }
 }
 
+#define NK_AUTO_LAYOUT 0
+
 // hierarchy
 void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,
                             Resources resources, FlEntity *p_chosen_entity) {
@@ -167,7 +169,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
         nk_menubar_begin(p_ctx);
 
-        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 3);
+        nk_layout_row_begin(p_ctx, NK_STATIC, NK_AUTO_LAYOUT, 3);
         nk_layout_row_push(p_ctx, DPI_SCALEX(35));
 
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
@@ -176,9 +178,8 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         const FlComponent mesh_render_id = p_comps->mesh_render;
         const FlComponent dir_light_id = p_comps->dir_light;
 
-        if (nk_menu_begin_label(p_ctx, "Add +", NK_TEXT_LEFT, nk_vec2(DPI_SCALEX(110),DPI_SCALEY(120))))
-        {
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        if (nk_menu_begin_label(p_ctx, "Add +", NK_TEXT_LEFT, nk_vec2(DPI_SCALEX(110),DPI_SCALEY(120)))) {
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
 
             if(nk_menu_item_label(p_ctx, "Object", NK_TEXT_LEFT)) {
                 const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
@@ -219,11 +220,6 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
             nk_menu_end(p_ctx);
         }
 
-        nk_layout_row_push(p_ctx, DPI_SCALEX(120));
-
-        nk_labelf(p_ctx, NK_TEXT_CENTERED, "Entity Count: %zu / %zu", p_ecs_ctx->entity_count, p_ecs_ctx->entity_cap);
-        nk_labelf(p_ctx, NK_TEXT_CENTERED, "Entity Global Id: %zu", p_ecs_ctx->g_entity_id);
-
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);
 
@@ -236,7 +232,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
             char txt_buf[256] = {0};
             while(fl_ecs_iter(p_ecs_ctx, &iter, &entity)) {
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
                 snprintf(txt_buf, arr_size(txt_buf), "[%zu] Entity", entity);
 
                 nk_bool is_chosen = *p_chosen_entity == entity;
@@ -258,19 +254,19 @@ void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win, Camer
     // camera properties
     if (nk_begin(p_ctx, "Camera Properties", nk_rect(width - DPI_SCALEX(340 + 20), DPI_SCALEY(50),
                                                       DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(18), 1);
-        fl_xyz_widget(p_ctx, "Position", p_cam->pos, -HUGE_VALUEF, HUGE_VALUEF);
+        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
+        fl_xyz_widget(p_ctx, "Position: ", p_cam->pos, -HUGE_VALUEF, HUGE_VALUEF);
 
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 3);
+        nk_label(p_ctx, "Rotation: ", NK_TEXT_LEFT);
         nk_property_float(p_ctx, "h(rad):", -FL_TAU, &p_cam->h_rot, FL_TAU, 0.1f, 0.01f);
         nk_property_float(p_ctx, "v(rad):", glm_rad(-89.0f), &p_cam->v_rot, glm_rad(89.0f), 0.1f, 0.01f);
 
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
         nk_property_float(p_ctx, "Field of view(rad):", 0.01f, &p_cam->fov, FL_PI, 0.1f, 0.01f);
         nk_property_float(p_ctx, "near plane(meter):", 0.01f,  &p_cam->near, HUGE_VALUEF, 0.1f, 0.01f);
         nk_property_float(p_ctx, "far plane(meter):", 0.01f,   &p_cam->far,  HUGE_VALUEF, 0.1f, 0.01f);
 
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
         nk_property_float(p_ctx, "speed multiplier:", 0.01f, &p_cam_settings->speed_multiplier, HUGE_VALUEF, 0.1f, 0.01f);
     }
     nk_end(p_ctx);

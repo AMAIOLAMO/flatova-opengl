@@ -3,7 +3,7 @@
 #include <fast_obj.h>
 #include <string.h>
 
-Model* load_model_obj(const char *path) {
+Model* load_model_obj_tri(const char *path) {
     Model *p_model = malloc(sizeof(Model));
 
     // quote from fast_obj
@@ -13,36 +13,36 @@ Model* load_model_obj(const char *path) {
        indicating that the attribute is not present. */
     fastObjMesh *fo_mesh = fast_obj_read(path);
 
-    // TODO: this is an assumption, because the fact that the triangles may not be loaded in 4 vertices each face
-    // obj does not store triangulation, we should be the one who handles that
-    // a solution is that we triangulate every mesh that is included
-    const size_t VERT_COUNT_PER_FACE = 6;
+    // TODO: this is an assumption, we will always assume every face given is a triangulated face
+    const size_t TRI_VERT_COUNT_PER_FACE = 3;
+    const size_t FACE_VERT_SIZE = 3;
 
-    size_t size = fo_mesh->face_count * VERT_COUNT_PER_FACE;
+    size_t size = fo_mesh->face_count * TRI_VERT_COUNT_PER_FACE;
 
     p_model->verts = malloc(sizeof(Vertex) * size);
     p_model->verts_count = size;
 
     memset(p_model->verts, 0, sizeof(Vertex) * size);
 
+    u32 offsets[] = {
+        0, 1, 2
+    };
+    
+    assert(arr_size(offsets) == TRI_VERT_COUNT_PER_FACE);
+
     // f v / vt / vn
-    for(size_t i = 0; i < fo_mesh->face_count; i++) {
-        u32 offsets[] = {
-            0, 1, 3,
-            1, 2, 3
-        };
+    for(size_t f_i = 0; f_i < fo_mesh->face_count; f_i++) {
 
         for(size_t off_i = 0; off_i < arr_size(offsets); off_i++) {
             u32 i_offset = offsets[off_i];
 
-            const size_t FACE_VERT_SIZE = 4;
-            fastObjIndex *p_vidx = &fo_mesh->indices[i * FACE_VERT_SIZE + i_offset];
+            fastObjIndex *p_vidx = &fo_mesh->indices[f_i * FACE_VERT_SIZE + i_offset];
 
             size_t p_idx         = p_vidx->p;
             size_t tex_coord_idx = p_vidx->t;
             size_t norm_idx      = p_vidx->n;
 
-            size_t model_vert_idx = i * VERT_COUNT_PER_FACE + off_i;
+            size_t model_vert_idx = f_i * TRI_VERT_COUNT_PER_FACE + off_i;
             glm_vec3_copy(&fo_mesh->positions[p_idx * 3],         p_model->verts[model_vert_idx].pos);
             glm_vec3_copy(&fo_mesh->normals[norm_idx * 3],        p_model->verts[model_vert_idx].normal);
             glm_vec2_copy(&fo_mesh->texcoords[tex_coord_idx * 2], p_model->verts[model_vert_idx].tex_coord);
