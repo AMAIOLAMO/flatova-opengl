@@ -1,4 +1,4 @@
-project('opengl_test', 'c',
+project('flatova', 'c',
   version : '0.1',
   default_options : ['warning_level=3']
 )
@@ -23,7 +23,7 @@ deps += dependency('cglm')
 deps += dependency('nativefiledialog-extended')
 
 
-executable('opengl_test',
+executable('flatova',
            sources: srcs,
            dependencies: deps,
            link_args: '-lm',
