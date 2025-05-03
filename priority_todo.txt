@@ -4,6 +4,8 @@ HIGH:
 - Entities with mesh render should be able to render with a selection outline
 - simplistic gizmos implementation, or blender like short cut controls ([X]g for grab, r for rotate, etc etc)
     - should display Editor Mode in the UI for user feedback (top middle)
+- every entity should have a name component, can be displayed in scene hierarchy
+    - entity with name component can be renamed
 
 
 MID:

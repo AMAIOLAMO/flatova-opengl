@@ -523,7 +523,7 @@ int main(void) {
     editor_ctx_register_widget(editor_ctx, "scene hierarchy",   resources_find(resources, "textures/cube"));
     editor_ctx_register_widget(editor_ctx, "camera properties", resources_find(resources, "textures/camera"));
     editor_ctx_register_widget(editor_ctx, "resource viewer",   resources_find(resources, "textures/magnify"));
-    editor_ctx_register_widget(editor_ctx, "scene settings",    NULL);
+    editor_ctx_register_widget(editor_ctx, "scene settings",    resources_find(resources, "textures/cog"));
     editor_ctx_register_widget(editor_ctx, "file browser",      resources_find(resources, "textures/folder"));
     editor_ctx_register_widget(editor_ctx, "entity inspector",  resources_find(resources, "textures/eye"));
 

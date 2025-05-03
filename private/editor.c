@@ -1,3 +1,5 @@
+#include "fl_ecs.h"
+#include "resources.h"
 #include <editor.h>
 
 #include <hashmap.h>
@@ -170,8 +172,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
         nk_menubar_begin(p_ctx);
 
-        nk_layout_row_begin(p_ctx, NK_STATIC, NK_AUTO_LAYOUT, 3);
-        nk_layout_row_push(p_ctx, DPI_SCALEX(35));
+        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 3);
 
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
@@ -179,7 +180,11 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         const FlComponent mesh_render_id = p_comps->mesh_render;
         const FlComponent dir_light_id = p_comps->dir_light;
 
-        if (nk_menu_begin_label(p_ctx, "Add +", NK_TEXT_LEFT, nk_vec2(DPI_SCALEX(110),DPI_SCALEY(120)))) {
+        GLuint *p_add_icon = resources_find(resources, "textures/plus");
+
+
+        nk_layout_row_push(p_ctx, DPI_SCALEX(25));
+        if(nk_menu_begin_image(p_ctx, "Add", nk_image_id(*p_add_icon), nk_vec2(DPI_SCALEX(110),DPI_SCALEY(120)))) {
             nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
 
             if(nk_menu_item_label(p_ctx, "Object", NK_TEXT_LEFT)) {
@@ -228,18 +233,34 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         size_t iter = 0;
         FlEntity entity;
 
-        // TODO: instead of checking specifically components, we just loop and allowing choosing of entities
         if (nk_tree_push(p_ctx, NK_TREE_NODE, "Entities", NK_MINIMIZED)) {
 
             char txt_buf[256] = {0};
+
+            FlEntity *p_entity_to_delete = NULL;
+
             while(fl_ecs_iter(p_ecs_ctx, &iter, &entity)) {
-                nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
+                nk_layout_row_template_begin(p_ctx, DPI_SCALEY(25));
+                nk_layout_row_template_push_dynamic(p_ctx);
+                nk_layout_row_template_push_static(p_ctx, DPI_SCALEX(25));
+                nk_layout_row_template_end(p_ctx);
+
                 snprintf(txt_buf, arr_size(txt_buf), "[%zu] Entity", entity);
 
                 nk_bool is_chosen = *p_chosen_entity == entity;
 
                 if(nk_selectable_label(p_ctx, txt_buf, NK_TEXT_LEFT, &is_chosen))
                     *p_chosen_entity = entity;
+
+                GLuint *p_del_icon = resources_find(resources, "textures/cross");
+
+                if(nk_button_image(p_ctx, nk_image_id(*p_del_icon)))
+                    p_entity_to_delete = &entity;
+            }
+
+            if(p_entity_to_delete != NULL) {
+                // fl_ecs_entity_free(p_ecs_ctx, *p_entity_to_delete);
+                // TODO: still requires debugging and fixing
             }
 
             nk_tree_pop(p_ctx);
