@@ -3,9 +3,7 @@ project('flatova', 'c',
   default_options : ['warning_level=3']
 )
 
-srcs = files(
-  'main.c'
-)
+srcs = files()
 
 includes = [
   include_directories('public')
@@ -14,19 +12,19 @@ includes = [
 subdir('lib')
 subdir('private')
 
-subdir('tests')
-
 deps = []
 
 deps += [dependency('glfw3'), dependency('gl')]
 deps += dependency('cglm')
 deps += dependency('nativefiledialog-extended')
 
+subdir('tests')
 
 executable('flatova',
-           sources: srcs,
-           dependencies: deps,
-           link_args: '-lm',
-           include_directories: includes,
-           install : true)
+  sources: srcs + files('main.c'),
+  dependencies: deps,
+  link_args: '-lm',
+  include_directories: includes,
+  install : true
+)
 

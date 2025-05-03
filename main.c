@@ -374,7 +374,7 @@ int main(void) {
     const size_t TBL_ENTITY_COUNT    = 100;
     const size_t TBL_COMPONENT_COUNT = 32;
 
-    FlEcsCtx ecs_ctx = fl_ecs_ctx_create(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
+    FlEcsCtx ecs_ctx = fl_create_ecs_ctx(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
 
     const FlComponent TRANSFORM_ID = fl_ecs_add_component(
         &ecs_ctx, sizeof(FlTransform)

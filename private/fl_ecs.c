@@ -30,7 +30,7 @@ static void fl_ecs_data_lists_free(void **data_lists, size_t component_count) {
     free(data_lists);
 }
 
-FlEcsCtx fl_ecs_ctx_create(FlEntity entity_cap, FlComponent component_cap) {
+FlEcsCtx fl_create_ecs_ctx(size_t entity_cap, size_t component_cap) {
     return (FlEcsCtx) {
         .table = fl_ecs_table_create(entity_cap, component_cap),
         .data_lists = fl_ecs_data_lists_create(component_cap),

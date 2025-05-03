@@ -25,7 +25,7 @@ typedef struct FlEcsCtx_t {
     size_t *component_byte_sizes;
 } FlEcsCtx;
 
-FlEcsCtx fl_ecs_ctx_create(FlEntity entity_cap, FlComponent component_cap);
+FlEcsCtx fl_create_ecs_ctx(size_t entity_cap, size_t component_cap);
 
 void fl_ecs_ctx_free(FlEcsCtx *p_ctx);
 
