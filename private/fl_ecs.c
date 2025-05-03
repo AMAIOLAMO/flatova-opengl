@@ -171,6 +171,13 @@ size_t fl_ecs_entity_get_table_idx(FlEcsCtx *p_ctx, FlEntity entity) {
 }
 
 void fl_ecs_entity_free(FlEcsCtx *p_ctx, FlEntity entity) {
+    if(p_ctx->entity_count == 1) {
+        fl_ecs_entity_unassociate(p_ctx, entity);
+        p_ctx->entity_count -= 1;
+        return;
+    }
+    // else
+
     size_t current_idx = fl_ecs_entity_get_associated_idx(p_ctx, entity);
     size_t last_idx = p_ctx->entity_count - 1;
     

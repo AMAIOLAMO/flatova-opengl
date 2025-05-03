@@ -14,9 +14,9 @@ typedef struct ExampleComponent2_t {
 } ExampleComponent2;
 
 int main(void) {
-    FlEcsCtx ecs_ctx = fl_create_ecs_ctx(500, 32);
+    FlEcsCtx ecs_ctx = fl_create_ecs_ctx(100, 32);
     assert(ecs_ctx.component_cap == 32);
-    assert(ecs_ctx.entity_cap == 500);
+    assert(ecs_ctx.entity_cap == 100);
     assert(ecs_ctx.entity_count == 0);
 
     FlComponent test_component_id = fl_ecs_add_component(&ecs_ctx, sizeof(ExampleComponent));
@@ -24,6 +24,13 @@ int main(void) {
 
     FlComponent test_component2_id = fl_ecs_add_component(&ecs_ctx, sizeof(ExampleComponent2));
     assert(ecs_ctx.component_byte_sizes[test_component2_id] == sizeof(ExampleComponent2));
+
+    FlEntity e0 = fl_ecs_entity_add(&ecs_ctx);
+    assert(fl_ecs_entity_has_component(&ecs_ctx, e0, test_component_id) == false);
+    assert(ecs_ctx.entity_count == 1);
+
+    fl_ecs_entity_free(&ecs_ctx, e0);
+    assert(ecs_ctx.entity_count == 0);
 
     FlEntity e1 = fl_ecs_entity_add(&ecs_ctx);
     assert(fl_ecs_entity_has_component(&ecs_ctx, e1, test_component_id) == false);
