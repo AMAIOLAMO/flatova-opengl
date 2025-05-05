@@ -167,7 +167,7 @@ void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) 
 
 // hierarchy
 void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,
-                            Resources resources, FlEntity *p_chosen_entity) {
+                            Resources resources, FlEntityId *p_chosen_entity) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         const Model *p_model = resources_find(resources, "primitives/cube");
@@ -190,7 +190,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
             nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
 
             if(nk_menu_item_label(p_ctx, "Object", NK_TEXT_LEFT)) {
-                const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
+                const FlEntityId entity = fl_ecs_entity_add(p_ecs_ctx);
 
                 FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
                 *p_transform = (FlTransform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
@@ -215,7 +215,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
             }
 
             if(nk_menu_item_label(p_ctx, "Directional Light", NK_TEXT_LEFT)) {
-                const FlEntity entity = fl_ecs_entity_add(p_ecs_ctx);
+                const FlEntityId entity = fl_ecs_entity_add(p_ecs_ctx);
                 fl_ecs_entity_activate_component(p_ecs_ctx, entity, dir_light_id, true);
 
                 FlDirLight *p_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_id);
@@ -233,13 +233,13 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
         
         size_t iter = 0;
-        FlEntity entity;
+        FlEntityId entity;
 
         if (nk_tree_push(p_ctx, NK_TREE_NODE, "Entities", NK_MINIMIZED)) {
-
             char txt_buf[256] = {0};
 
-            FlEntity *p_entity_to_delete = NULL;
+            FlEntityId entity_to_delete;
+            bool should_delete_entity = false;
 
             while(fl_ecs_iter(p_ecs_ctx, &iter, &entity)) {
                 nk_layout_row_template_begin(p_ctx, DPI_SCALEY(25));
@@ -256,14 +256,14 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
                 GLuint *p_del_icon = resources_find(resources, "textures/cross");
 
-                if(nk_button_image(p_ctx, nk_image_id(*p_del_icon)))
-                    p_entity_to_delete = &entity;
+                if(nk_button_image(p_ctx, nk_image_id(*p_del_icon))) {
+                    entity_to_delete = entity;
+                    should_delete_entity = true;
+                }
             }
 
-            if(p_entity_to_delete != NULL) {
-                // fl_ecs_entity_free(p_ecs_ctx, *p_entity_to_delete);
-                // TODO: still requires debugging and fixing
-            }
+            if(should_delete_entity)
+                fl_ecs_entity_free(p_ecs_ctx, entity_to_delete);
 
             nk_tree_pop(p_ctx);
         }
@@ -318,8 +318,10 @@ void resources_model_free(void *p_raw) {
 void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
     if (nk_begin(p_ctx, "Resource Viewer", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        // nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        
         // TODO: the resources loaded must know their name and path, instead of just "primitives/a"
+        // Maybe ask the user to have the name of the resource? or just wait for file management to be complete
         /*if(nk_button_label(p_ctx, "load model")) {*/
         /**/
         /*    nfdu8char_t *model_path;*/
@@ -348,17 +350,74 @@ void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
         /*    }*/
         /*}*/
         
-        size_t iter = 0;
-        Resource *p_resource = NULL;
+        // TODO: sort these under categories
 
-        size_t idx = 0;
+        size_t texs_idx = 0;
+        Resource *res_texs[256] = {0};
 
-        while(resources_iter(resources, &iter, &p_resource)) {
+        size_t models_idx = 0;
+        Resource *res_models[256] = {0};
+
+        size_t shaders_idx = 0;
+        Resource *res_shaders[256] = {0};
+
+        {
+            size_t iter = 0;
+            Resource *p_resource = NULL;
+
+            while(resources_iter(resources, &iter, &p_resource)) {
+                switch(p_resource->type) {
+                    case FL_RES_TEXTURE:
+                        res_texs[texs_idx++] = p_resource;
+                        break;
+
+                    case FL_RES_MODEL:
+                        res_models[models_idx++] = p_resource;
+                        break;
+
+                    case FL_RES_SHADER_PROG:
+                        res_shaders[shaders_idx++] = p_resource;
+                        break;
+                }
+            }
+        }
+
+
+        // rendering
+        if (nk_tree_push(p_ctx, NK_TREE_NODE, "Textures", NK_MINIMIZED)) {
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 2);
-            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", idx, p_resource->id);
-            nk_labelf(p_ctx, NK_TEXT_RIGHT, "%p", p_resource->p_raw);
 
-            idx += 1;
+            for(size_t i = 0; i < texs_idx - 1; i++) {
+                Resource *p_res = res_texs[i];
+                nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", i, p_res->id);
+                nk_labelf(p_ctx, NK_TEXT_RIGHT, "%p", p_res->p_raw);
+            }
+            
+            nk_tree_pop(p_ctx);
+        }
+
+        if (nk_tree_push(p_ctx, NK_TREE_NODE, "Models", NK_MINIMIZED)) {
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 2);
+
+            for(size_t i = 0; i < models_idx - 1; i++) {
+                Resource *p_res = res_models[i];
+                nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", i, p_res->id);
+                nk_labelf(p_ctx, NK_TEXT_RIGHT, "%p", p_res->p_raw);
+            }
+            
+            nk_tree_pop(p_ctx);
+        }
+
+        if (nk_tree_push(p_ctx, NK_TREE_NODE, "Shaders", NK_MINIMIZED)) {
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 2);
+
+            for(size_t i = 0; i < shaders_idx - 1; i++) {
+                Resource *p_res = res_shaders[i];
+                nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", i, p_res->id);
+                nk_labelf(p_ctx, NK_TEXT_RIGHT, "%p", p_res->p_raw);
+            }
+            
+            nk_tree_pop(p_ctx);
         }
     }
     nk_end(p_ctx);
@@ -477,7 +536,7 @@ void* resources_filtered_combo_selection(
 }
 
 void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
-                             FlEditorComponents *p_comps, FlEntity *p_chosen_entity) {
+                             FlEditorComponents *p_comps, FlEntityId *p_chosen_entity) {
     if (nk_begin(p_ctx, "Entity Inspector",
                  nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
                  DEFAULT_NK_WIN_FLAGS)) {
@@ -487,7 +546,7 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
         // TODO: HACK entity checking is not strict here, it will break when we introduce deleting of entities
         // since we will move around the entity IDs in memory, so FlEntity cannot be directly used to check whether or not
         // it is a valid entity
-        if(p_ecs_ctx->entity_count > 0 && (*p_chosen_entity) < p_ecs_ctx->entity_count) {
+        if(fl_ecs_entity_valid(p_ecs_ctx, *p_chosen_entity)) {
             const FlComponent transform_id = p_comps->transform;
             nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
 

@@ -113,6 +113,7 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
             res,
             &(Resource){ .id = ALLOC_RES_STRING_ID, .p_raw = p_strings, .type = FL_RES_OTHER, .free = resources_idstrings_free }
         );
+
         printf("pstr: %p\n", (void*)p_strings);
     }
 

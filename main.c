@@ -1,4 +1,4 @@
-#include "cglm/vec3.h"
+#include "hashmap.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -222,7 +222,7 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
     FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
     size_t iter = 0;
-    FlEntity entity;
+    FlEntityId entity;
 
     FlComponent transform_comp = comps.transform;
     FlComponent mesh_render_comp = comps.mesh_render;
@@ -370,6 +370,11 @@ int fl_glfw_init(GLFWwindow **pp_win) {
     return true;
 }
 
+typedef struct FlId2Idx_t {
+    FlEntityId id;
+    size_t idx;
+} FlId2Idx;
+
 int main(void) {
     const size_t TBL_ENTITY_COUNT    = 100;
     const size_t TBL_COMPONENT_COUNT = 32;
@@ -425,7 +430,7 @@ int main(void) {
 
         resources_store(
             resources,
-            &(Resource){.id = "fonts/roboto_regular", .p_raw = roboto_regular, .type = FL_RES_FONT }
+            &(Resource){ .id = "fonts/roboto_regular", .p_raw = roboto_regular, .type = FL_RES_FONT }
         );
     }
     
@@ -498,7 +503,6 @@ int main(void) {
     resources_store(resources, &(Resource){.id = "primitives/plane", .p_raw = get_prim_plane_vertices(), .type = FL_RES_VERTICES});
 
     // create buffers
-    // TODO: abstract this into a function, since this is dependent on vertex, it is not the job of the main function
     VertexPipeline vert_pipeline = vertex_gen_buffer_arrays();
 
     DefaultPipeline pipe = {
@@ -547,14 +551,13 @@ int main(void) {
             .dir_light   = DIR_LIGHT_ID
         };
 
-        static FlEntity chosen_entity = 0;
+        static FlEntityId chosen_entity = 0;
         static vec3 original_location;
         static double orig_grab_x, orig_grab_y;
 
         if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && editor_ctx.mode != FL_EDITOR_GRAB) {
 
-            // TODO: fl_ecs_valid_entity should be created and replaced instead of the callee knowing how to check it
-            if(chosen_entity < ecs_ctx.entity_cap &&
+            if(fl_ecs_entity_valid(&ecs_ctx, chosen_entity) &&
                 fl_ecs_entity_has_component(&ecs_ctx, chosen_entity, TRANSFORM_ID)) {
                 FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, chosen_entity, TRANSFORM_ID);
 
@@ -629,6 +632,25 @@ int main(void) {
 
         render_editor_metrics(nk_ctx, p_win, dt);
 
+        const nk_flags DEFAULT_NK_WIN_FLAGS = NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
+            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE;
+
+
+        if (nk_begin(nk_ctx, "ECS Metrics", nk_rect(g_scaling_x(0), g_scaling_y(50),
+                                                      g_scaling_x(200), g_scaling_y(50)), DEFAULT_NK_WIN_FLAGS)) {
+            size_t iter = 0;
+            FlId2Idx *p_id2idx;
+
+            nk_layout_row_dynamic(nk_ctx, g_scaling_y(15), 1);
+            while(hashmap_iter(ecs_ctx.id2idx_map, &iter, (void**)&p_id2idx)) {
+                nk_labelf(nk_ctx, NK_TEXT_CENTERED, "Pair: (%zu, %zu)", p_id2idx->id, p_id2idx->idx);
+            }
+
+            // nk_layout_row_dynamic(p_ctx, DPI_SCALEY(15), 1);
+            // nk_label(&ecs_ctx, "Editor Metrics", NK_TEXT_CENTERED);
+            // nk_labelf(p_ctx, NK_TEXT_CENTERED, "frames per second(FPS): %.2fs", fps);
+        }
+        nk_end(nk_ctx);
 
         // RENDERING
         render_scene_frame(p_win, pipe, &scene, resources, comps);

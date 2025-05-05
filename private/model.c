@@ -13,7 +13,7 @@ Model* load_model_obj_tri(const char *path) {
        indicating that the attribute is not present. */
     fastObjMesh *fo_mesh = fast_obj_read(path);
 
-    // TODO: this is an assumption, we will always assume every face given is a triangulated face
+    // this is an assumption, we will always assume every face given is a triangulated face
     const size_t TRI_VERT_COUNT_PER_FACE = 3;
     const size_t FACE_VERT_SIZE = 3;
 

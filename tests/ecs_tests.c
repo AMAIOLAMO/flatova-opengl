@@ -25,23 +25,25 @@ int main(void) {
     FlComponent test_component2_id = fl_ecs_add_component(&ecs_ctx, sizeof(ExampleComponent2));
     assert(ecs_ctx.component_byte_sizes[test_component2_id] == sizeof(ExampleComponent2));
 
-    FlEntity e0 = fl_ecs_entity_add(&ecs_ctx);
+    FlEntityId e0 = fl_ecs_entity_add(&ecs_ctx);
     assert(fl_ecs_entity_has_component(&ecs_ctx, e0, test_component_id) == false);
     assert(ecs_ctx.entity_count == 1);
+    assert(fl_ecs_entity_valid(&ecs_ctx, e0) == true);
 
     fl_ecs_entity_free(&ecs_ctx, e0);
     assert(ecs_ctx.entity_count == 0);
+    assert(fl_ecs_entity_valid(&ecs_ctx, e0) == false);
 
-    FlEntity e1 = fl_ecs_entity_add(&ecs_ctx);
+    FlEntityId e1 = fl_ecs_entity_add(&ecs_ctx);
     assert(fl_ecs_entity_has_component(&ecs_ctx, e1, test_component_id) == false);
     assert(ecs_ctx.entity_count == 1);
 
-    FlEntity e2 = fl_ecs_entity_add(&ecs_ctx);
+    FlEntityId e2 = fl_ecs_entity_add(&ecs_ctx);
     assert(fl_ecs_entity_has_component(&ecs_ctx, e2, test_component_id) == false);
     assert(ecs_ctx.entity_count == 2);
 
     size_t iter = 0;
-    FlEntity q_entity;
+    FlEntityId q_entity;
     FlComponent comps[] = {
         test_component_id
     };
@@ -75,10 +77,14 @@ int main(void) {
     p_comp = fl_ecs_get_entity_component_data(&ecs_ctx, e2, test_component_id);
     assert(p_comp->value == 200 && p_comp->a == 40.01f && p_comp->b == -100.0f);
 
+    assert(fl_ecs_entity_valid(&ecs_ctx, e1) == true);
+
     fl_ecs_entity_free(&ecs_ctx, e1);
     assert(ecs_ctx.entity_count == 1);
 
-    FlEntity e3 = fl_ecs_entity_add(&ecs_ctx);
+    assert(fl_ecs_entity_valid(&ecs_ctx, e1) == false);
+
+    FlEntityId e3 = fl_ecs_entity_add(&ecs_ctx);
     assert(fl_ecs_entity_has_component(&ecs_ctx, e3, test_component_id) == false);
     assert(fl_ecs_entity_has_component(&ecs_ctx, e3, test_component2_id) == false);
     assert(ecs_ctx.entity_count == 2);

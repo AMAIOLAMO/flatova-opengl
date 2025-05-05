@@ -1,10 +1,9 @@
 HIGH:
 - Mouse scrolling camera speed up (Display in engine directly)
-- Allow deletion of entities (requires hashmap indirection pointing towards the table)
 - Entities with mesh render should be able to render with a selection outline
 - simplistic gizmos implementation, or blender like short cut controls ([X]g for grab, r for rotate, etc etc)
     - should display Editor Mode in the UI for user feedback (top middle)
-- every entity should have a name component, can be displayed in scene hierarchy
+- every entity should have a name component, can be displayed in scene hierarchy(Meta component?)
     - entity with name component can be renamed
 
 
@@ -13,9 +12,8 @@ MID:
     - Maybe allow the user to tone up the scaling of the window using arguments? its much easier that way
 - Render the scene in a separate window (Requires Frame buffers and render textures) call it Viewport
 - Customize keybinds (Allow setting keybind map[reference from other engines?])
-- Add categories in resources, load resources by type
 - Simple Shadow map implementation
-- instead of using booleans for ECS, utilize unsigned long instead, so around 64 components to be used
+- instead of using booleans for ECS, utilize uint64_t / uint32_t instead, so around 32 / 64 components to be used
 
 
 
@@ -36,3 +34,5 @@ COMPLETE:
 - [X] write a makefile for others to initialize the project easily,
     especially for meson compile -C build, meson clean and meson setup build for compilation
 - [X] Make Add button more obvious
+- [X] Add categories in resources, load resources by type
+- [X] Allow deletion of entities (requires hashmap indirection pointing towards the table)

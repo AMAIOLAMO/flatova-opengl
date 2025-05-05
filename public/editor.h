@@ -62,7 +62,7 @@ void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color);
 
 // hierarchy
 void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,
-                            Resources resources, FlEntity *p_chosen_entity);
+                            Resources resources, FlEntityId *p_chosen_entity);
 
 void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win, Camera *p_cam, CameraSettings *p_cam_settings);
 
@@ -78,7 +78,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 void render_file_browser(struct nk_context *p_ctx);
 
 void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
-                             FlEditorComponents *p_comps, FlEntity *p_chosen_entity);
+                             FlEditorComponents *p_comps, FlEntityId *p_chosen_entity);
 
 
 #endif // _EDITOR_H

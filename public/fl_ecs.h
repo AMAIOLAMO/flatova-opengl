@@ -4,7 +4,7 @@
 
 #include <utils.h>
 
-typedef size_t FlEntity;
+typedef size_t FlEntityId;
 typedef size_t FlComponent;
 
 typedef b8 FlTableItem;
@@ -37,21 +37,22 @@ void fl_ecs_ctx_free(FlEcsCtx *p_ctx);
 FlComponent fl_ecs_add_component(FlEcsCtx *p_ctx, size_t component_bytes_size);
 
 // activates the components for an entity
-void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component, b8 active);
+void fl_ecs_entity_activate_component(FlEcsCtx *p_ctx, FlEntityId entity, FlComponent component, b8 active);
 
 // Iterates through all the entities
-b8 fl_ecs_iter(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity);
+b8 fl_ecs_iter(FlEcsCtx *p_ctx, size_t *p_iter, FlEntityId *p_entity);
 
 // tries to query entities given a list of components
-b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntity *p_entity, FlComponent *components, size_t components_size);
+b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntityId *p_entity, FlComponent *components, size_t components_size);
 
-FlEntity fl_ecs_entity_add(FlEcsCtx *p_ctx);
-void fl_ecs_entity_free(FlEcsCtx *p_ctx, FlEntity entity);
+FlEntityId fl_ecs_entity_add(FlEcsCtx *p_ctx);
+void fl_ecs_entity_free(FlEcsCtx *p_ctx, FlEntityId entity);
+b8 fl_ecs_entity_valid(FlEcsCtx *p_ctx, FlEntityId entity);
 
 // gets the raw pointer of the entity's associated data
-void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component);
+void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntityId entity, FlComponent component);
 
 // returns whether or not this entity contains a component
-b8 fl_ecs_entity_has_component(FlEcsCtx *p_ctx, FlEntity entity, FlComponent component);
+b8 fl_ecs_entity_has_component(FlEcsCtx *p_ctx, FlEntityId entity, FlComponent component);
 
 #endif // _FL_ECS_H
