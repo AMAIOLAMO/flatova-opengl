@@ -1,4 +1,3 @@
-#include "hashmap.h"
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -196,7 +195,7 @@ void render_skybox(Resources resources, const DefaultPipeline pipeline, Camera *
 
 void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene *p_scene,
                         Resources resources, FlEditorComponents comps) {
-    glClear(GL_DEPTH_BUFFER_BIT);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
@@ -216,7 +215,8 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_BLEND);
     glEnable(GL_CULL_FACE);
-
+    glEnable(GL_STENCIL_TEST);
+    
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
@@ -274,6 +274,9 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
             pipeline.vert_buf, pipeline.norm_buf, pipeline.tex_coord_buf
         );
 
+        mat4 local_to_world_mat = GLM_MAT4_IDENTITY_INIT;
+        transform_apply(*p_transform, local_to_world_mat);
+
         shader_use(*p_shader); {
             shader_set_uniform_3f(*p_shader, "dir_light.dir",   global_light_dir);
             shader_set_uniform_3f(*p_shader, "dir_light.color", global_light_color);
@@ -295,10 +298,6 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
             shader_set_uniform_3f(*p_shader, "cam_pos", cam.pos);
             shader_set_uniform_mat4fv(*p_shader, "view_proj", view_proj_mat);
 
-            mat4 local_to_world_mat;
-            glm_mat4_identity(local_to_world_mat);
-            transform_apply(*p_transform, local_to_world_mat);
-
             shader_set_uniform_mat4fv(*p_shader, "model", local_to_world_mat);
 
             mat4 normal_mat;
@@ -311,8 +310,44 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         if(p_scene->wireframe_mode)
             glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
 
+        // should render outline
+        if(entity == p_scene->selected_entity) {
+            glClear(GL_STENCIL_BUFFER_BIT);
+            glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE); // only set stencil to 1 if they show up on screen
+            glStencilFunc(GL_ALWAYS, 1, 0xFF); // all fragments pass
+            glStencilMask(0xFF); // allow writing to stencil
+        }
+
         glBindVertexArray(pipeline.vert_arr);
         glDrawArrays(GL_TRIANGLES, 0, p_model->verts_count);
+
+        // draw outline
+        if(entity == p_scene->selected_entity) {
+            glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
+            glStencilMask(0x00); // disable writing
+            glDisable(GL_DEPTH_TEST);
+
+            Shader *p_single_color = resources_find(resources, "shaders/single_color");
+            shader_use(*p_single_color); {
+                mat4 outline_scale = GLM_MAT4_IDENTITY_INIT;
+                const float SCALE_SIZE = 1.1f;
+                glm_scale(outline_scale, (vec3){ SCALE_SIZE, SCALE_SIZE, SCALE_SIZE });
+
+                mat4 scaled_local_to_world_mat;
+                glm_mat4_mul(local_to_world_mat, outline_scale, scaled_local_to_world_mat);
+
+                shader_set_uniform_mat4fv(*p_single_color, "view_proj", view_proj_mat);
+                shader_set_uniform_mat4fv(*p_single_color, "model", scaled_local_to_world_mat);
+                shader_set_uniform_3f(*p_single_color, "color", (vec3){0.0f, 1.0f, 0.0f});
+            }
+
+            glBindVertexArray(pipeline.vert_arr);
+            glDrawArrays(GL_TRIANGLES, 0, p_model->verts_count);
+
+            glStencilMask(0xFF);
+            glStencilFunc(GL_ALWAYS, 1, 0xFF);
+            glEnable(GL_DEPTH_TEST);
+        }
 
         if(p_scene->wireframe_mode)
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
@@ -448,7 +483,8 @@ int main(void) {
     stbi_image_free(img.pixels);
 
 
-    // LOAD all shaders in vendor
+    // TODO: LOAD all shaders in vendor using recursive loading instead,
+    // this method is tedious and makes the code too long
     if(resources_load_shader_from_files(
         resources, "shaders/grid",
         "./shaders/grid.vs", "./shaders/grid.fs"
@@ -500,7 +536,32 @@ int main(void) {
 
     printf("Skybox shader loaded\n");
 
-    resources_store(resources, &(Resource){.id = "primitives/plane", .p_raw = get_prim_plane_vertices(), .type = FL_RES_VERTICES});
+    if(resources_load_shader_from_files(
+        resources, "shaders/depth_only",
+        "./shaders/depth_only.vs", "./shaders/depth_only.fs"
+    ) == NULL) {
+        printf("Error: Failed to load depth shaders!\n");
+        glfwTerminate();
+        return -1;
+    }
+
+    printf("depth Shaders loaded\n");
+    
+    if(resources_load_shader_from_files(
+        resources, "shaders/single_color",
+        "./shaders/single_color.vs", "./shaders/single_color.fs"
+    ) == NULL) {
+        printf("Error: Failed to load single color shaders!\n");
+        glfwTerminate();
+        return -1;
+    }
+
+    printf("single Color Shaders loaded\n");
+
+    resources_store(
+        resources,
+        &(Resource){.id = "primitives/plane", .p_raw = get_prim_plane_vertices(), .type = FL_RES_VERTICES}
+    );
 
     // create buffers
     VertexPipeline vert_pipeline = vertex_gen_buffer_arrays();
@@ -522,6 +583,7 @@ int main(void) {
         .ambient_color = {1.0f, 1.0f, 1.0f},
         .light_pos = {5.0f, 1.0f, 2.0f},
         .p_ecs_ctx = &ecs_ctx,
+        .selected_entity = 0,
         .wireframe_mode = false,
     };
 
@@ -551,15 +613,14 @@ int main(void) {
             .dir_light   = DIR_LIGHT_ID
         };
 
-        static FlEntityId chosen_entity = 0;
         static vec3 original_location;
         static double orig_grab_x, orig_grab_y;
 
         if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && editor_ctx.mode != FL_EDITOR_GRAB) {
 
-            if(fl_ecs_entity_valid(&ecs_ctx, chosen_entity) &&
-                fl_ecs_entity_has_component(&ecs_ctx, chosen_entity, TRANSFORM_ID)) {
-                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, chosen_entity, TRANSFORM_ID);
+            if(fl_ecs_entity_valid(&ecs_ctx, scene.selected_entity) &&
+                fl_ecs_entity_has_component(&ecs_ctx, scene.selected_entity, TRANSFORM_ID)) {
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, scene.selected_entity, TRANSFORM_ID);
 
                 glfwGetCursorPos(p_win, &orig_grab_x, &orig_grab_y);
                 
@@ -595,9 +656,9 @@ int main(void) {
             glm_vec3_add(offset, up, offset);
 
 
-            if(chosen_entity < ecs_ctx.entity_cap &&
-                fl_ecs_entity_has_component(&ecs_ctx, chosen_entity, TRANSFORM_ID)) {
-                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, chosen_entity, TRANSFORM_ID);
+            if(fl_ecs_entity_valid(&ecs_ctx, scene.selected_entity) &&
+                fl_ecs_entity_has_component(&ecs_ctx, scene.selected_entity, TRANSFORM_ID)) {
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, scene.selected_entity, TRANSFORM_ID);
             
                 glm_vec3_copy(original_location, p_transform->pos);
                 glm_vec3_add(offset, p_transform->pos, p_transform->pos);
@@ -612,8 +673,9 @@ int main(void) {
         }
 
 
+        // TODO: remove the selected entity since it is by default passed into the scene itself
         if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
-            render_scene_hierarchy(nk_ctx, &scene, &comps, resources, &chosen_entity);
+            render_scene_hierarchy(nk_ctx, &scene, &comps, resources, &scene.selected_entity);
 
         if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win, &cam, &cam_settings);
@@ -628,29 +690,9 @@ int main(void) {
             render_file_browser(nk_ctx);
 
         if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
-            render_entity_inspector(nk_ctx, &scene, resources, &comps, &chosen_entity);
+            render_entity_inspector(nk_ctx, &scene, resources, &comps, &scene.selected_entity);
 
         render_editor_metrics(nk_ctx, p_win, dt);
-
-        const nk_flags DEFAULT_NK_WIN_FLAGS = NK_WINDOW_BORDER|NK_WINDOW_MOVABLE|NK_WINDOW_SCALABLE|
-            NK_WINDOW_MINIMIZABLE|NK_WINDOW_TITLE;
-
-
-        if (nk_begin(nk_ctx, "ECS Metrics", nk_rect(g_scaling_x(0), g_scaling_y(50),
-                                                      g_scaling_x(200), g_scaling_y(50)), DEFAULT_NK_WIN_FLAGS)) {
-            size_t iter = 0;
-            FlId2Idx *p_id2idx;
-
-            nk_layout_row_dynamic(nk_ctx, g_scaling_y(15), 1);
-            while(hashmap_iter(ecs_ctx.id2idx_map, &iter, (void**)&p_id2idx)) {
-                nk_labelf(nk_ctx, NK_TEXT_CENTERED, "Pair: (%zu, %zu)", p_id2idx->id, p_id2idx->idx);
-            }
-
-            // nk_layout_row_dynamic(p_ctx, DPI_SCALEY(15), 1);
-            // nk_label(&ecs_ctx, "Editor Metrics", NK_TEXT_CENTERED);
-            // nk_labelf(p_ctx, NK_TEXT_CENTERED, "frames per second(FPS): %.2fs", fps);
-        }
-        nk_end(nk_ctx);
 
         // RENDERING
         render_scene_frame(p_win, pipe, &scene, resources, comps);

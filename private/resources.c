@@ -40,9 +40,16 @@ void resources_free(Resources resources) {
     hashmap_free(resources);
 }
 
+b8 resources_has(Resources resources, const char *id) {
+    const Resource *resource = hashmap_get(resources, &(Resource){ .id = id });
+
+    return resource != NULL;
+}
+
 const Resource* resources_store(Resources resources, const Resource *p_resource) {
     assert(p_resource && "ERROR: Cannot store resource of NULL");
     assert(p_resource->p_raw && "ERROR: p_resource->p_raw is NULL");
+    assert(resources_find(resources, p_resource->id) == NULL && "ERROR: Cannot store resource when it has the same id!");
 
     return hashmap_set(resources, p_resource);
 }

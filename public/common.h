@@ -22,6 +22,12 @@ typedef struct FlMeshRender_t {
     float specular_factor;
 } FlMeshRender;
 
+#define FL_META_NAME_LEN_MAX 255
+
+typedef struct FlMeta_t {
+    char name[FL_META_NAME_LEN_MAX + 1];
+} FlMeta;
+
 typedef struct FlDirLight_t {
     vec3 direction;
     vec3 color;
@@ -39,6 +45,8 @@ typedef struct Scene_t {
     vec3 ambient_color;
 
     b8 wireframe_mode;
+
+    FlEntityId selected_entity;
 
     FlEcsCtx *p_ecs_ctx;
 } Scene;

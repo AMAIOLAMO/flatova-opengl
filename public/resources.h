@@ -43,7 +43,7 @@ const Resource* resources_store(Resources resources, const Resource *p_resource)
 // automatically deallocates the resource using the given free_func.
 // const Resource* resources_store_auto(Resources resources, const char *id, void* p_res, res_free_func_t free_func);
 
-// finds the resource given the id, returns the raw ptr of the resource
+// finds the resource given the id, returns the raw ptr of the resource if found, returns NULL otherwise
 void* resources_find(Resources resources, const char *id);
 
 // iterates through the resources, and returns a resource ptr for each iteration
