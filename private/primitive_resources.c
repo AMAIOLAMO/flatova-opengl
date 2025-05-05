@@ -16,7 +16,10 @@ Shader* resources_load_shader_from_files(Resources resources, const char *identi
     Shader *p_shader = malloc(sizeof(Shader));
 
     if(try_load_shader_from_files(p_shader, vert_path, frag_path)) {
-        resources_store_auto(resources, identifier, p_shader, res_shader_free);
+        resources_store(
+            resources,
+            &(Resource){ .id = identifier, .p_raw = p_shader, .type = FL_RES_SHADER_PROG, .free = res_shader_free }
+        );
 
         return p_shader;
     }
@@ -35,7 +38,10 @@ Model* resources_load_model_from_obj(
 ) {
     Model *p_model = load_model_obj_tri(obj_path);
     if(p_model)
-        resources_store_auto(resources, identifier, p_model, res_model_free);
+        resources_store(
+            resources,
+            &(Resource){ .id = identifier, .p_raw = p_model, .type = FL_RES_MODEL, .free = res_model_free }
+        );
 
     return p_model;
 }
@@ -56,7 +62,11 @@ GLuint* resources_load_tex2d_linear_from_file(Resources resources, const char *i
         return NULL;
     }
 
-    resources_store_auto(resources, identifier, p_tex, res_texture2d_free);
+    resources_store(
+        resources,
+        &(Resource){ .id = identifier, .p_raw = p_tex, .type = FL_RES_TEXTURE, .free = res_texture2d_free }
+    );
+
     return p_tex;
 }
 
@@ -70,7 +80,9 @@ GLuint* resources_load_tex2d_nearest_from_file(Resources resources, const char *
         return NULL;
     }
 
-    resources_store_auto(resources, identifier, p_tex, res_texture2d_free);
+    resources_store(
+        resources,
+        &(Resource){ .id = identifier, .p_raw = p_tex, .type = FL_RES_TEXTURE, .free = res_texture2d_free });
     return p_tex;
 }
 
@@ -97,7 +109,10 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
         p_strings = malloc(sizeof(ResIdStrings));
         memset(p_strings, 0, sizeof(ResIdStrings));
 
-        resources_store_auto(res, ALLOC_RES_STRING_ID, p_strings, resources_idstrings_free);
+        resources_store(
+            res,
+            &(Resource){ .id = ALLOC_RES_STRING_ID, .p_raw = p_strings, .type = FL_RES_OTHER, .free = resources_idstrings_free }
+        );
         printf("pstr: %p\n", (void*)p_strings);
     }
 

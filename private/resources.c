@@ -1,4 +1,6 @@
 #include <resources.h>
+
+#include <assert.h>
 #include <string.h>
 
 static int resource_cmp(const void *a, const void *b, void *udata) {
@@ -6,13 +8,13 @@ static int resource_cmp(const void *a, const void *b, void *udata) {
     const Resource *ra = a;
     const Resource *rb = b;
 
-    return strcmp(ra->identifier, rb->identifier);
+    return strcmp(ra->id, rb->id);
 }
 
 static uint64_t resource_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     const Resource *res = item;
     // default hash
-    return hashmap_sip(res->identifier, strlen(res->identifier), seed0, seed1);
+    return hashmap_sip(res->id, strlen(res->id), seed0, seed1);
 }
 
 
@@ -38,16 +40,15 @@ void resources_free(Resources resources) {
     hashmap_free(resources);
 }
 
-const Resource* resources_store(Resources resources, const char *id, void* p_res) {
-    return resources_store_auto(resources, id, p_res, NULL);
-}
+const Resource* resources_store(Resources resources, const Resource *p_resource) {
+    assert(p_resource && "ERROR: Cannot store resource of NULL");
+    assert(p_resource->p_raw && "ERROR: p_resource->p_raw is NULL");
 
-const Resource* resources_store_auto(Resources resources, const char *id, void* p_res, res_free_func_t free_func) {
-    return hashmap_set(resources, &(Resource){ .identifier = id, .p_raw = p_res, .free = free_func });
+    return hashmap_set(resources, p_resource);
 }
 
 void* resources_find(Resources resources, const char *id) {
-    const Resource *resource = hashmap_get(resources, &(Resource){ .identifier = id });
+    const Resource *resource = hashmap_get(resources, &(Resource){ .id = id });
 
     return resource ? resource->p_raw : NULL;
 }

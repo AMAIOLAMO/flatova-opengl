@@ -48,8 +48,10 @@ b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_ope
 
 b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier) {
     const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .identifier = identifier });
+
+    assert(scene_widget && "ERROR: scene widget is null, cannot check if the widget is open");
     
-    return scene_widget && scene_widget->is_open;
+    return scene_widget->is_open;
 }
 
 void editor_ctx_free(FlEditorCtx ctx) {
@@ -353,7 +355,7 @@ void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
 
         while(resources_iter(resources, &iter, &p_resource)) {
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 2);
-            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", idx, p_resource->identifier);
+            nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", idx, p_resource->id);
             nk_labelf(p_ctx, NK_TEXT_RIGHT, "%p", p_resource->p_raw);
 
             idx += 1;
@@ -442,11 +444,11 @@ void render_file_browser(struct nk_context *p_ctx) {
 typedef b8(*res_filter_combo_func)(Resource *p_res);
 
 b8 res_filter_combo_primitives(Resource *p_res) {
-    return strncmp(p_res->identifier, "primitives", strlen("primitives")) == 0;
+    return strncmp(p_res->id, "primitives", strlen("primitives")) == 0;
 }
 
 b8 res_filter_combo_textures(Resource *p_res) {
-    return strncmp(p_res->identifier, "textures", strlen("textures")) == 0;
+    return strncmp(p_res->id, "textures", strlen("textures")) == 0;
 }
 
 void* resources_filtered_combo_selection(
@@ -465,7 +467,7 @@ void* resources_filtered_combo_selection(
             if(p_resource->p_raw == current_resource)
                 selected = list_size;
 
-            list[list_size++] = p_resource->identifier;
+            list[list_size++] = p_resource->id;
         }
     }
 

@@ -1,10 +1,11 @@
-#include "hashmap.h"
 #include <assert.h>
 #include <fl_ecs.h>
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#include <hashmap.h>
 
 typedef struct FlId2Idx_t {
     FlEntity id;

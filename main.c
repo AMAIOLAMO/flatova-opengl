@@ -423,12 +423,15 @@ int main(void) {
         nk_glfw3_font_stash_end(&nk_glfw);
         nk_style_set_font(nk_ctx, &roboto_regular->handle);
 
-        resources_store(resources, "fonts/roboto_regular", roboto_regular);
+        resources_store(
+            resources,
+            &(Resource){.id = "fonts/roboto_regular", .p_raw = roboto_regular, .type = FL_RES_FONT }
+        );
     }
     
     // loop through contents in vendor
     const size_t DIR_DEPTH = 5;
-    resources_load_dir_recursive(resources, DIR_DEPTH, TINYDIR_STRING("./vendor"));
+    resources_load_dir_recursive(resources, DIR_DEPTH, "./vendor");
 
     GLFWimage img = {0};
     
@@ -492,7 +495,7 @@ int main(void) {
 
     printf("Skybox shader loaded\n");
 
-    resources_store(resources, "primitives/plane", get_prim_plane_vertices());
+    resources_store(resources, &(Resource){.id = "primitives/plane", .p_raw = get_prim_plane_vertices(), .type = FL_RES_VERTICES});
 
     // create buffers
     // TODO: abstract this into a function, since this is dependent on vertex, it is not the job of the main function
