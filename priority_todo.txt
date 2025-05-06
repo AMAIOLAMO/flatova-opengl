@@ -1,10 +1,10 @@
 HIGH:
 - Mouse scrolling camera speed up (Display in engine directly)
-- Entities with mesh render should be able to render with a selection outline
 - simplistic gizmos implementation, or blender like short cut controls ([X]g for grab, r for rotate, etc etc)
     - should display Editor Mode in the UI for user feedback (top middle)
 - every entity should have a name component, can be displayed in scene hierarchy(Meta component?)
     - entity with name component can be renamed
+
 
 
 MID:
@@ -36,3 +36,4 @@ COMPLETE:
 - [X] Make Add button more obvious
 - [X] Add categories in resources, load resources by type
 - [X] Allow deletion of entities (requires hashmap indirection pointing towards the table)
+- [X] Entities with mesh render should be able to render with a selection outline

@@ -42,7 +42,7 @@ b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier);
 void editor_ctx_free(FlEditorCtx ctx);
 
 typedef struct FlEditorComponents_t {
-    FlComponent transform, mesh_render, dir_light;
+    FlComponent transform, mesh_render, dir_light, meta;
 } FlEditorComponents;
 
 typedef struct FlScaling_t {

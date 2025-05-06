@@ -181,6 +181,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         const FlComponent transform_id = p_comps->transform;
         const FlComponent mesh_render_id = p_comps->mesh_render;
         const FlComponent dir_light_id = p_comps->dir_light;
+        const FlComponent meta_id = p_comps->meta;
 
         GLuint *p_add_icon = resources_find(resources, "textures/plus");
 
@@ -192,13 +193,14 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
             if(nk_menu_item_label(p_ctx, "Object", NK_TEXT_LEFT)) {
                 const FlEntityId entity = fl_ecs_entity_add(p_ecs_ctx);
 
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, meta_id, true);
+
                 FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
                 *p_transform = (FlTransform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
 
                 FlMeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id);
-
-                fl_ecs_entity_activate_component(p_ecs_ctx, entity, transform_id, true);
-                fl_ecs_entity_activate_component(p_ecs_ctx, entity, mesh_render_id, true);
 
                 Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
 
@@ -212,8 +214,12 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
                     .p_model = p_model, .p_shader = p_phong,
                     .p_specular_tex = p_specular_texture, .p_diffuse_tex = p_diffuse_texture, .specular_factor = 32.0f
                 };
+
+                FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, meta_id);
+                strncpy(p_meta->name, "__UNNAMED__", FL_META_NAME_LEN_MAX);
             }
 
+            // TODO: rename directional light as global light
             if(nk_menu_item_label(p_ctx, "Directional Light", NK_TEXT_LEFT)) {
                 const FlEntityId entity = fl_ecs_entity_add(p_ecs_ctx);
                 fl_ecs_entity_activate_component(p_ecs_ctx, entity, dir_light_id, true);
@@ -223,6 +229,11 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
                     .direction = {0.0f, -1.0f, 0.0f},
                     .color = {1.0f, 1.0f, 1.0f}
                 };
+
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, meta_id, true);
+
+                FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, meta_id);
+                strncpy(p_meta->name, "__UNNAMED_DIRLIGHT__", FL_META_NAME_LEN_MAX);
             }
 
             nk_menu_end(p_ctx);
@@ -549,6 +560,12 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
         if(fl_ecs_entity_valid(p_ecs_ctx, *p_chosen_entity)) {
             const FlComponent transform_id = p_comps->transform;
             nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
+
+            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, p_comps->meta)) {
+                FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, p_comps->meta);
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(50), 1);
+                nk_labelf(p_ctx, NK_TEXT_CENTERED, "%s", p_meta->name);
+            }
 
             // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
             // RENDER TRANSFORM

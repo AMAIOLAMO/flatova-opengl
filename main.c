@@ -277,6 +277,11 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         mat4 local_to_world_mat = GLM_MAT4_IDENTITY_INIT;
         transform_apply(*p_transform, local_to_world_mat);
 
+
+        // the normal deserves its own matrix, due to world material possibly scaling the normal vectors!
+        mat4 normal_mat = GLM_MAT4_IDENTITY_INIT;
+        euler_radians_transform_xyz(p_transform->rot, normal_mat);
+
         shader_use(*p_shader); {
             shader_set_uniform_3f(*p_shader, "dir_light.dir",   global_light_dir);
             shader_set_uniform_3f(*p_shader, "dir_light.color", global_light_color);
@@ -300,10 +305,6 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
 
             shader_set_uniform_mat4fv(*p_shader, "model", local_to_world_mat);
 
-            mat4 normal_mat;
-            glm_mat4_identity(normal_mat);
-            euler_radians_transform_xyz(p_transform->rot, normal_mat);
-
             shader_set_uniform_mat4fv(*p_shader, "norm_mat", normal_mat);
         }
 
@@ -325,19 +326,19 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         if(entity == p_scene->selected_entity) {
             glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
             glStencilMask(0x00); // disable writing
-            glDisable(GL_DEPTH_TEST);
+            // glDisable(GL_DEPTH_TEST);
 
             Shader *p_single_color = resources_find(resources, "shaders/single_color");
             shader_use(*p_single_color); {
                 mat4 outline_scale = GLM_MAT4_IDENTITY_INIT;
-                const float SCALE_SIZE = 1.1f;
+                const float SCALE_SIZE = 1.05f;
                 glm_scale(outline_scale, (vec3){ SCALE_SIZE, SCALE_SIZE, SCALE_SIZE });
 
                 mat4 scaled_local_to_world_mat;
                 glm_mat4_mul(local_to_world_mat, outline_scale, scaled_local_to_world_mat);
+                shader_set_uniform_mat4fv(*p_single_color, "model", scaled_local_to_world_mat);
 
                 shader_set_uniform_mat4fv(*p_single_color, "view_proj", view_proj_mat);
-                shader_set_uniform_mat4fv(*p_single_color, "model", scaled_local_to_world_mat);
                 shader_set_uniform_3f(*p_single_color, "color", (vec3){0.0f, 1.0f, 0.0f});
             }
 
@@ -346,7 +347,7 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
 
             glStencilMask(0xFF);
             glStencilFunc(GL_ALWAYS, 1, 0xFF);
-            glEnable(GL_DEPTH_TEST);
+            // glEnable(GL_DEPTH_TEST);
         }
 
         if(p_scene->wireframe_mode)
@@ -427,6 +428,17 @@ int main(void) {
     const FlComponent DIR_LIGHT_ID = fl_ecs_add_component(
         &ecs_ctx, sizeof(FlDirLight)
     );
+
+    const FlComponent META_ID = fl_ecs_add_component(
+        &ecs_ctx, sizeof(FlMeta)
+    );
+
+    FlEditorComponents comps = {
+        .transform   = TRANSFORM_ID,
+        .mesh_render = MESH_RENDER_ID,
+        .dir_light   = DIR_LIGHT_ID,
+        .meta        = META_ID
+    };
 
     NFD_Init();
 
@@ -558,6 +570,17 @@ int main(void) {
 
     printf("single Color Shaders loaded\n");
 
+    if(resources_load_shader_from_files(
+        resources, "shaders/outline",
+        "./shaders/outline.vs", "./shaders/outline.fs"
+    ) == NULL) {
+        printf("Error: Failed to load outline shaders!\n");
+        glfwTerminate();
+        return -1;
+    }
+
+    printf("outline Shaders loaded\n");
+
     resources_store(
         resources,
         &(Resource){.id = "primitives/plane", .p_raw = get_prim_plane_vertices(), .type = FL_RES_VERTICES}
@@ -606,12 +629,6 @@ int main(void) {
         nk_glfw3_new_frame(&nk_glfw);
 
         render_main_menubar(nk_ctx, p_win, resources, &editor_ctx);
-
-        FlEditorComponents comps = {
-            .transform   = TRANSFORM_ID,
-            .mesh_render = MESH_RENDER_ID,
-            .dir_light   = DIR_LIGHT_ID
-        };
 
         static vec3 original_location;
         static double orig_grab_x, orig_grab_y;
