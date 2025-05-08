@@ -13,13 +13,13 @@ static int fl_widget_ctx_cmp(const void *a, const void *b, void *udata) {
     const FlWidgetCtx *ra = a;
     const FlWidgetCtx *rb = b;
 
-    return strcmp(ra->identifier, rb->identifier);
+    return strcmp(ra->id, rb->id);
 }
 
 static uint64_t fl_widget_ctx_hash(const void *item, uint64_t seed0, uint64_t seed1) {
     const FlWidgetCtx *res = item;
     // default hash
-    return hashmap_sip(res->identifier, strlen(res->identifier), seed0, seed1);
+    return hashmap_sip(res->id, strlen(res->id), seed0, seed1);
 }
 
 FlEditorCtx create_editor_ctx(void) {
@@ -29,8 +29,10 @@ FlEditorCtx create_editor_ctx(void) {
     };
 }
 
-void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier, GLuint *p_icon_tex) {
-    hashmap_set(ctx.widgets, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = p_icon_tex, .is_open = false});
+void editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx) {
+    assert(p_widget_ctx && "ERROR: cannot register a NULL widget -> p_widget_ctx is NULL");
+    assert(p_widget_ctx->id && "ERROR: identifier is required to be initialized -> p_widget_ctx->id is NULL");
+    hashmap_set(ctx.widgets, p_widget_ctx);
 }
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
@@ -38,16 +40,20 @@ int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx
 }
 
 b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .identifier = identifier });
-    if(!scene_widget)
+    const FlWidgetCtx *p_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .id = identifier });
+
+    if(!p_widget)
         return false;
 
-    hashmap_set(ctx.widgets, &(FlWidgetCtx){.identifier = identifier, .p_icon_tex = scene_widget->p_icon_tex, .is_open = is_open});
+    FlWidgetCtx new_ctx = *p_widget;
+    new_ctx.is_open = is_open;
+
+    hashmap_set(ctx.widgets, &new_ctx);
     return true;
 }
 
 b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .identifier = identifier });
+    const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .id = identifier });
 
     assert(scene_widget && "ERROR: scene widget is null, cannot check if the widget is open");
     
@@ -166,8 +172,7 @@ void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) 
 #define NK_AUTO_LAYOUT 0
 
 // hierarchy
-void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,
-                            Resources resources, FlEntityId *p_chosen_entity) {
+void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps, Resources resources) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         const Model *p_model = resources_find(resources, "primitives/cube");
@@ -198,11 +203,11 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
                 fl_ecs_entity_activate_component(p_ecs_ctx, entity, meta_id, true);
 
                 FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_id);
-                *p_transform = (FlTransform){.pos = {0.0f, 0.0f, 0.0f}, .scale = {1.0f, 1.0f, 1.0f}};
+                *p_transform = (FlTransform){.pos = GLM_VEC3_ZERO_INIT, .scale = GLM_VEC3_ONE_INIT};
 
                 FlMeshRender *p_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_id);
 
-                Shader *p_phong = (Shader*)resources_find(resources, "shaders/phong");
+                Shader *p_phong = resources_find(resources, "shaders/phong");
 
                 GLuint *p_diffuse_texture  = resources_find(resources, "textures/white1x1");
                 assert(p_diffuse_texture);
@@ -247,7 +252,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         FlEntityId entity;
 
         if (nk_tree_push(p_ctx, NK_TREE_NODE, "Entities", NK_MINIMIZED)) {
-            char txt_buf[256] = {0};
+            char txt_buf[FL_META_NAME_LEN_MAX + 256] = {0};
 
             FlEntityId entity_to_delete;
             bool should_delete_entity = false;
@@ -258,12 +263,17 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
                 nk_layout_row_template_push_static(p_ctx, DPI_SCALEX(25));
                 nk_layout_row_template_end(p_ctx);
 
-                snprintf(txt_buf, arr_size(txt_buf), "[%zu] Entity", entity);
+                if(fl_ecs_entity_has_component(p_ecs_ctx, entity, meta_id)) {
+                    FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, meta_id);
+                    snprintf(txt_buf, arr_size(txt_buf), "[%zu] %s", entity, p_meta->name);
+                }
+                else
+                    snprintf(txt_buf, arr_size(txt_buf), "[%zu] Entity", entity);
 
-                nk_bool is_chosen = *p_chosen_entity == entity;
+                nk_bool is_chosen = p_scene->selected_entity == entity;
 
                 if(nk_selectable_label(p_ctx, txt_buf, NK_TEXT_LEFT, &is_chosen))
-                    *p_chosen_entity = entity;
+                    p_scene->selected_entity = entity;
 
                 GLuint *p_del_icon = resources_find(resources, "textures/cross");
 
@@ -459,25 +469,54 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
     glfwGetWindowSize(p_win, &width, &height);
 
     if (nk_begin(p_ctx, "Main Menubar", nk_rect(0, 0, width, DPI_SCALEY(30)), EMPTY_NK_WIN_FLAGS)) {
-        nk_menubar_begin(p_ctx);
-
-        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), 1);
-        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
-
         GLuint *p_icon_tex = resources_find(resources, "textures/wrench");
         assert(p_icon_tex && "Error: Cannot load icon for main menu bar");
 
         struct nk_image widgets_icon = nk_image_id(*p_icon_tex);
 
+        const size_t WIDGET_CATEGORY_COUNT = 3;
+
+        size_t common_size = 0;
+        FlWidgetCtx *common_widgets[32] = {0};
+
+        size_t settings_size = 0;
+        FlWidgetCtx *settings_widgets[32] = {0};
+
+        size_t metrics_size = 0;
+        FlWidgetCtx *metrics_widgets[32] = {0};
+
+        size_t iter = 0;
+        FlWidgetCtx *p_widget_ctx = NULL;
+
+        while(editor_ctx_iter(*p_editor_ctx, &iter, &p_widget_ctx)) {
+            switch(p_widget_ctx->type) {
+                case FL_WIDGET_COMMON:
+                    common_widgets[common_size++] = p_widget_ctx;
+                    break;
+
+                case FL_WIDGET_SETTINGS:
+                    settings_widgets[settings_size++] = p_widget_ctx;
+                    break;
+
+                case FL_WIDGET_METRICS:
+                    metrics_widgets[metrics_size++] = p_widget_ctx;
+                    break;
+            }
+        }
+
+        nk_menubar_begin(p_ctx);
+        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), WIDGET_CATEGORY_COUNT);
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
+
+        // TODO: rewrite this to make this less longer, it is repeating too much
         if (nk_menu_begin_image_label(
-            p_ctx, "widgets", NK_TEXT_RIGHT, widgets_icon,
+            p_ctx, "common", NK_TEXT_RIGHT, widgets_icon,
             nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
         )) {
 
-            size_t iter = 0;
-            FlWidgetCtx *p_widget_ctx = NULL;
+            for(size_t i = 0; i < common_size; i++) {
+                FlWidgetCtx *p_widget_ctx = common_widgets[i];
 
-            while(editor_ctx_iter(*p_editor_ctx, &iter, &p_widget_ctx)) {
                 nk_bool is_open = p_widget_ctx->is_open;
                 nk_layout_row_template_begin(p_ctx, DPI_SCALEY(20));
 
@@ -490,12 +529,71 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
                 if(p_widget_ctx->p_icon_tex)
                     nk_image(p_ctx, nk_image_id(*p_widget_ctx->p_icon_tex));
 
-                nk_checkbox_label(p_ctx, p_widget_ctx->identifier, &is_open);
-                editor_ctx_set_widget_open(*p_editor_ctx, p_widget_ctx->identifier, is_open);
+                nk_checkbox_label(p_ctx, p_widget_ctx->id, &is_open);
+                editor_ctx_set_widget_open(*p_editor_ctx, p_widget_ctx->id, is_open);
             }
 
             nk_menu_end(p_ctx);
         }
+
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
+
+        if (nk_menu_begin_image_label(
+            p_ctx, "settings", NK_TEXT_RIGHT, widgets_icon,
+            nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
+        )) {
+
+            for(size_t i = 0; i < settings_size; i++) {
+                FlWidgetCtx *p_widget_ctx = settings_widgets[i];
+
+                nk_bool is_open = p_widget_ctx->is_open;
+                nk_layout_row_template_begin(p_ctx, DPI_SCALEY(20));
+
+                if(p_widget_ctx->p_icon_tex)
+                    nk_layout_row_template_push_static(p_ctx, DPI_SCALEY(20));
+
+                nk_layout_row_template_push_dynamic(p_ctx);
+                nk_layout_row_template_end(p_ctx);
+
+                if(p_widget_ctx->p_icon_tex)
+                    nk_image(p_ctx, nk_image_id(*p_widget_ctx->p_icon_tex));
+
+                nk_checkbox_label(p_ctx, p_widget_ctx->id, &is_open);
+                editor_ctx_set_widget_open(*p_editor_ctx, p_widget_ctx->id, is_open);
+            }
+
+            nk_menu_end(p_ctx);
+        }
+
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
+
+        if (nk_menu_begin_image_label(
+            p_ctx, "metrics", NK_TEXT_RIGHT, widgets_icon,
+            nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
+        )) {
+
+            for(size_t i = 0; i < metrics_size; i++) {
+                FlWidgetCtx *p_widget_ctx = metrics_widgets[i];
+
+                nk_bool is_open = p_widget_ctx->is_open;
+                nk_layout_row_template_begin(p_ctx, DPI_SCALEY(20));
+
+                if(p_widget_ctx->p_icon_tex)
+                    nk_layout_row_template_push_static(p_ctx, DPI_SCALEY(20));
+
+                nk_layout_row_template_push_dynamic(p_ctx);
+                nk_layout_row_template_end(p_ctx);
+
+                if(p_widget_ctx->p_icon_tex)
+                    nk_image(p_ctx, nk_image_id(*p_widget_ctx->p_icon_tex));
+
+                nk_checkbox_label(p_ctx, p_widget_ctx->id, &is_open);
+                editor_ctx_set_widget_open(*p_editor_ctx, p_widget_ctx->id, is_open);
+            }
+
+            nk_menu_end(p_ctx);
+        }
+
 
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);
@@ -547,7 +645,7 @@ void* resources_filtered_combo_selection(
 }
 
 void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
-                             FlEditorComponents *p_comps, FlEntityId *p_chosen_entity) {
+                             FlEditorComponents *p_comps) {
     if (nk_begin(p_ctx, "Entity Inspector",
                  nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
                  DEFAULT_NK_WIN_FLAGS)) {
@@ -557,23 +655,23 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
         // TODO: HACK entity checking is not strict here, it will break when we introduce deleting of entities
         // since we will move around the entity IDs in memory, so FlEntity cannot be directly used to check whether or not
         // it is a valid entity
-        if(fl_ecs_entity_valid(p_ecs_ctx, *p_chosen_entity)) {
+        if(fl_ecs_entity_valid(p_ecs_ctx, p_scene->selected_entity)) {
             const FlComponent transform_id = p_comps->transform;
             nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
 
-            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, p_comps->meta)) {
-                FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, p_comps->meta);
+            if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, p_comps->meta)) {
+                FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, p_comps->meta);
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(50), 1);
                 nk_labelf(p_ctx, NK_TEXT_CENTERED, "%s", p_meta->name);
             }
 
             // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
             // RENDER TRANSFORM
-            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, transform_id)) {
+            if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, transform_id)) {
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(100), 1);
 
                 nk_group_begin(p_ctx, "Transform", group_flags);
-                FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, transform_id);
+                FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, transform_id);
                 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
                 fl_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
@@ -585,12 +683,12 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
             // RENDER MESH RENDER
             const FlComponent mesh_render_id = p_comps->mesh_render;
-            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, mesh_render_id)) {
+            if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, mesh_render_id)) {
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(350), 1);
 
                 nk_group_begin(p_ctx, "Mesh Render", group_flags);
 
-                FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, mesh_render_id);
+                FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, mesh_render_id);
 
                 const char *models[30] = {0};
 
@@ -647,8 +745,8 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
             }
 
             const FlComponent dir_light_id = p_comps->dir_light;
-            if(fl_ecs_entity_has_component(p_ecs_ctx, *p_chosen_entity, dir_light_id)) {
-                FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, *p_chosen_entity, dir_light_id);
+            if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, dir_light_id)) {
+                FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, dir_light_id);
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
                 fl_xyz_widget(p_ctx, "Direction", p_dir_light->direction, -1, 1);

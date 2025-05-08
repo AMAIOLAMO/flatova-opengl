@@ -2,9 +2,13 @@ HIGH:
 - Mouse scrolling camera speed up (Display in engine directly)
 - simplistic gizmos implementation, or blender like short cut controls ([X]g for grab, r for rotate, etc etc)
     - should display Editor Mode in the UI for user feedback (top middle)
-- every entity should have a name component, can be displayed in scene hierarchy(Meta component?)
-    - entity with name component can be renamed
-
+- entity with name component can be renamed
+- Create a simplistic tutorial (text based with images)
+- Make all the widget content to be more consistent
+    - Recategorize widgets
+    - Make all widget contents all follow same rule (Label left, content right) [Maybe use different colors?]
+    - Learn to use groups and categorize UI more
+- Create a [X]Console Widget, Log errors, outputs there
 
 
 MID:
@@ -37,3 +41,4 @@ COMPLETE:
 - [X] Add categories in resources, load resources by type
 - [X] Allow deletion of entities (requires hashmap indirection pointing towards the table)
 - [X] Entities with mesh render should be able to render with a selection outline
+- [X] every entity should have a name component, can be displayed in scene hierarchy(Meta component?)

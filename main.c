@@ -603,21 +603,43 @@ int main(void) {
 
     Scene scene = {
         .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
-        .ambient_color = {1.0f, 1.0f, 1.0f},
+        .ambient_color = {0.88f, 0.69f, 0.61f},
         .light_pos = {5.0f, 1.0f, 2.0f},
         .p_ecs_ctx = &ecs_ctx,
         .selected_entity = 0,
         .wireframe_mode = false,
     };
-
+    
     FlEditorCtx editor_ctx = create_editor_ctx();
 
-    editor_ctx_register_widget(editor_ctx, "scene hierarchy",   resources_find(resources, "textures/cube"));
-    editor_ctx_register_widget(editor_ctx, "camera properties", resources_find(resources, "textures/camera"));
-    editor_ctx_register_widget(editor_ctx, "resource viewer",   resources_find(resources, "textures/magnify"));
-    editor_ctx_register_widget(editor_ctx, "scene settings",    resources_find(resources, "textures/cog"));
-    editor_ctx_register_widget(editor_ctx, "file browser",      resources_find(resources, "textures/folder"));
-    editor_ctx_register_widget(editor_ctx, "entity inspector",  resources_find(resources, "textures/eye"));
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "scene hierarchy", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/cube")}
+    );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "camera properties", .type = FL_WIDGET_SETTINGS, .p_icon_tex = resources_find(resources, "textures/camera")}
+    );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "resource viewer", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/magnify")}
+    );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "scene settings", .type = FL_WIDGET_SETTINGS, .p_icon_tex = resources_find(resources, "textures/cog")}
+    );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "file browser", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/folder")}
+    );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "entity inspector", .type = FL_WIDGET_COMMON,  .p_icon_tex = resources_find(resources, "textures/eye")}
+    );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "console", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/question")}
+    );
 
     while(!glfwWindowShouldClose(p_win)) {
         float current_time = glfwGetTime();
@@ -692,7 +714,7 @@ int main(void) {
 
         // TODO: remove the selected entity since it is by default passed into the scene itself
         if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
-            render_scene_hierarchy(nk_ctx, &scene, &comps, resources, &scene.selected_entity);
+            render_scene_hierarchy(nk_ctx, &scene, &comps, resources);
 
         if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win, &cam, &cam_settings);
@@ -707,7 +729,7 @@ int main(void) {
             render_file_browser(nk_ctx);
 
         if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
-            render_entity_inspector(nk_ctx, &scene, resources, &comps, &scene.selected_entity);
+            render_entity_inspector(nk_ctx, &scene, resources, &comps);
 
         render_editor_metrics(nk_ctx, p_win, dt);
 

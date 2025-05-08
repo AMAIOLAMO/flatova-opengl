@@ -14,9 +14,14 @@
 #include <fl_ecs.h>
 #include <common.h>
 
+#define FL_WIDGET_COMMON   0x0
+#define FL_WIDGET_METRICS  0x1
+#define FL_WIDGET_SETTINGS 0x2
+
 typedef struct FlWidgetCtx_t {
-    const char *identifier;
+    const char *id;
     GLuint *p_icon_tex;
+    uint16_t type;
     b8 is_open;
 } FlWidgetCtx;
 
@@ -31,7 +36,7 @@ typedef struct FlEditorCtx_t {
 
 FlEditorCtx create_editor_ctx(void);
 
-void editor_ctx_register_widget(FlEditorCtx ctx, const char *identifier, GLuint *p_icon_tex);
+void editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx);
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx);
 
@@ -61,8 +66,7 @@ void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float
 void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color);
 
 // hierarchy
-void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps,
-                            Resources resources, FlEntityId *p_chosen_entity);
+void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps, Resources resources);
 
 void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win, Camera *p_cam, CameraSettings *p_cam_settings);
 
@@ -77,8 +81,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
 void render_file_browser(struct nk_context *p_ctx);
 
-void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
-                             FlEditorComponents *p_comps, FlEntityId *p_chosen_entity);
+void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources, FlEditorComponents *p_comps);
 
 
 #endif // _EDITOR_H
