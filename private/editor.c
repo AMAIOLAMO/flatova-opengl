@@ -764,3 +764,13 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
     }
     nk_end(p_ctx);
 }
+
+void render_tutorial(struct nk_context *p_ctx, Resources resources) {
+    if (nk_begin(p_ctx, "Tutorial",
+                 nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
+                 DEFAULT_NK_WIN_FLAGS)) {
+
+
+        nk_end(p_ctx);
+    }
+}

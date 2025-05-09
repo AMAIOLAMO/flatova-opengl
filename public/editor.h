@@ -76,6 +76,8 @@ void render_resource_viewer(struct nk_context *p_ctx, Resources resources);
 
 void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene);
 
+void render_tutorial(struct nk_context *p_ctx, Resources resources);
+
 
 void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources resources, FlEditorCtx *p_editor_ctx);
 

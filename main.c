@@ -411,6 +411,67 @@ typedef struct FlId2Idx_t {
     size_t idx;
 } FlId2Idx;
 
+void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs, Scene *p_scene, FlEditorComponents *p_comps) {
+    static vec3 original_location;
+    static double orig_grab_x, orig_grab_y;
+
+    if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && p_editor->mode != FL_EDITOR_GRAB) {
+
+        if(fl_ecs_entity_valid(p_ecs, p_scene->selected_entity) &&
+            fl_ecs_entity_has_component(p_ecs, p_scene->selected_entity, p_comps->transform)) {
+            FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs, p_scene->selected_entity, p_comps->transform);
+
+            glfwGetCursorPos(p_win, &orig_grab_x, &orig_grab_y);
+
+            p_editor->mode = FL_EDITOR_GRAB;
+            glm_vec3_copy(p_transform->pos, original_location);
+
+            printf("Editor Mode Enter: Grab\n");
+            fflush(stdout);
+        }
+
+    }
+
+    if(p_editor->mode == FL_EDITOR_GRAB) {
+        const float GRAB_UNIT_MULTIPLIER = 0.001f;
+        vec3 right, up;
+        camera_right(cam, right);
+        camera_up(cam, up);
+
+        static double new_grab_x, new_grab_y;
+        glfwGetCursorPos(p_win, &new_grab_x, &new_grab_y);
+
+        vec2 grab_diff = {
+            new_grab_x - orig_grab_x,
+            new_grab_y - orig_grab_y
+        };
+
+        vec3 offset;
+        glm_vec3_zero(offset);
+        glm_vec3_scale(right, grab_diff[0] * GRAB_UNIT_MULTIPLIER, right);
+        glm_vec3_scale(up,    -grab_diff[1] * GRAB_UNIT_MULTIPLIER, up);
+
+        glm_vec3_add(offset, right, offset);
+        glm_vec3_add(offset, up, offset);
+
+
+        if(fl_ecs_entity_valid(p_ecs, p_scene->selected_entity) &&
+            fl_ecs_entity_has_component(p_ecs, p_scene->selected_entity, p_comps->transform)) {
+            FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs, p_scene->selected_entity, p_comps->transform);
+
+            glm_vec3_copy(original_location, p_transform->pos);
+            glm_vec3_add(offset, p_transform->pos, p_transform->pos);
+
+        }
+
+        if(glfwGetMouseButton(p_win, GLFW_MOUSE_BUTTON_LEFT)) {
+            p_editor->mode = FL_EDITOR_VIEW;
+
+            printf("Applying transform\n");
+        }
+    }
+}
+
 int main(void) {
     const size_t TBL_ENTITY_COUNT    = 100;
     const size_t TBL_COMPONENT_COUNT = 32;
@@ -640,6 +701,11 @@ int main(void) {
         editor_ctx,
         &(FlWidgetCtx){ .id = "console", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/question")}
     );
+    editor_ctx_register_widget(
+        editor_ctx,
+        &(FlWidgetCtx){ .id = "tutorial", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/star")}
+    );
+
 
     while(!glfwWindowShouldClose(p_win)) {
         float current_time = glfwGetTime();
@@ -652,65 +718,7 @@ int main(void) {
 
         render_main_menubar(nk_ctx, p_win, resources, &editor_ctx);
 
-        static vec3 original_location;
-        static double orig_grab_x, orig_grab_y;
-
-        if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && editor_ctx.mode != FL_EDITOR_GRAB) {
-
-            if(fl_ecs_entity_valid(&ecs_ctx, scene.selected_entity) &&
-                fl_ecs_entity_has_component(&ecs_ctx, scene.selected_entity, TRANSFORM_ID)) {
-                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, scene.selected_entity, TRANSFORM_ID);
-
-                glfwGetCursorPos(p_win, &orig_grab_x, &orig_grab_y);
-                
-                editor_ctx.mode = FL_EDITOR_GRAB;
-                glm_vec3_copy(p_transform->pos, original_location);
-
-                printf("Editor Mode Enter: Grab\n");
-                fflush(stdout);
-            }
-
-        }
-
-        if(editor_ctx.mode == FL_EDITOR_GRAB) {
-            const float GRAB_UNIT_MULTIPLIER = 0.001f;
-            vec3 right, up;
-            camera_right(cam, right);
-            camera_up(cam, up);
-
-            static double new_grab_x, new_grab_y;
-            glfwGetCursorPos(p_win, &new_grab_x, &new_grab_y);
-
-            vec2 grab_diff = {
-                new_grab_x - orig_grab_x,
-                new_grab_y - orig_grab_y
-            };
-
-            vec3 offset;
-            glm_vec3_zero(offset);
-            glm_vec3_scale(right, grab_diff[0] * GRAB_UNIT_MULTIPLIER, right);
-            glm_vec3_scale(up,    -grab_diff[1] * GRAB_UNIT_MULTIPLIER, up);
-
-            glm_vec3_add(offset, right, offset);
-            glm_vec3_add(offset, up, offset);
-
-
-            if(fl_ecs_entity_valid(&ecs_ctx, scene.selected_entity) &&
-                fl_ecs_entity_has_component(&ecs_ctx, scene.selected_entity, TRANSFORM_ID)) {
-                FlTransform *p_transform = fl_ecs_get_entity_component_data(&ecs_ctx, scene.selected_entity, TRANSFORM_ID);
-            
-                glm_vec3_copy(original_location, p_transform->pos);
-                glm_vec3_add(offset, p_transform->pos, p_transform->pos);
-
-            }
-
-            if(glfwGetMouseButton(p_win, GLFW_MOUSE_BUTTON_LEFT)) {
-                editor_ctx.mode = FL_EDITOR_VIEW;
-
-                printf("Applying transform\n");
-            }
-        }
-
+        handle_grab(p_win, &editor_ctx, &ecs_ctx, &scene, &comps);
 
         // TODO: remove the selected entity since it is by default passed into the scene itself
         if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
@@ -730,6 +738,9 @@ int main(void) {
 
         if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
             render_entity_inspector(nk_ctx, &scene, resources, &comps);
+
+        if(editor_ctx_is_widget_open(editor_ctx, "tutorial"))
+            render_tutorial(nk_ctx, resources);
 
         render_editor_metrics(nk_ctx, p_win, dt);
 
