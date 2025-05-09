@@ -769,6 +769,50 @@ void render_tutorial(struct nk_context *p_ctx, Resources resources) {
     if (nk_begin(p_ctx, "Tutorial",
                  nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
                  DEFAULT_NK_WIN_FLAGS)) {
+        GLuint *p_eye = resources_find(resources, "textures/eye");
+
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 2), 1);
+        nk_label_wrap(p_ctx, "This tutorial serves as a basic guide on how to navigate, use and create stuff in Flatova!");
+
+        if(nk_tree_push(p_ctx, NK_TREE_NODE, "Interface", NK_MINIMIZED)) {
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 2), 1);
+            nk_label_wrap(p_ctx, "The major interfaces of Flatova consists of the following:");
+
+            nk_layout_row_static(p_ctx, DPI_SCALEY(50), DPI_SCALEX(50), 1);
+            nk_image(p_ctx, nk_image_id(*p_eye));
+
+
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
+            if(nk_tree_push(p_ctx, NK_TREE_TAB, "Menubar", NK_MINIMIZED)) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 2), 1);
+                nk_label_wrap(p_ctx, "Menubar is the long strip of UI at the top of the application.");
+                nk_tree_pop(p_ctx);
+            }
+
+            if(nk_tree_push(p_ctx, NK_TREE_TAB, "Widgets", NK_MINIMIZED)) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 3), 1);
+                nk_label_wrap(p_ctx, "Widgets in Flatova are considered to be tiny floating widgets. " \
+                              "The tutorial window you see right now is a widget as well. They can be enabled by going to the menu bar");
+                nk_tree_pop(p_ctx);
+            }
+
+            
+            if(nk_tree_push(p_ctx, NK_TREE_TAB, "Viewport", NK_MINIMIZED)) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 3), 1);
+                nk_label_wrap(p_ctx, "Widgets in Flatova are considered to be tiny floating widgets. " \
+                              "The tutorial window you see right now is a widget as well. They can be enabled by going to the menu bar");
+                nk_tree_pop(p_ctx);
+            }
+
+            if(nk_tree_push(p_ctx, NK_TREE_TAB, "Editor Metrics", NK_MINIMIZED)) {
+                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 3), 1);
+                nk_label_wrap(p_ctx, "Widgets in Flatova are considered to be tiny floating widgets. " \
+                              "The tutorial window you see right now is a widget as well. They can be enabled by going to the menu bar");
+                nk_tree_pop(p_ctx);
+            }
+
+            nk_tree_pop(p_ctx);
+        }
 
 
         nk_end(p_ctx);
