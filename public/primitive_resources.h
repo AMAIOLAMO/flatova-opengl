@@ -42,5 +42,7 @@ typedef struct ResIdStrings_t {
 
 void resources_load_dir_recursive(Resources res, size_t depth, const char *path);
 
+ResIdStrings* resources_lazy_get_id_strings(Resources res);
+
 #endif // _PRIMITIVE_RESOURCES_H
 

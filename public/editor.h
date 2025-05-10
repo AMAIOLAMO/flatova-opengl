@@ -6,6 +6,7 @@
 
 #include <camera.h>
 
+#define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_VARARGS
 #include <nuklear.h>
@@ -14,9 +15,10 @@
 #include <fl_ecs.h>
 #include <common.h>
 
-#define FL_WIDGET_COMMON   0x0
-#define FL_WIDGET_METRICS  0x1
-#define FL_WIDGET_SETTINGS 0x2
+#define FL_WIDGET_COMMON      0x0
+#define FL_WIDGET_METRICS     0x1
+#define FL_WIDGET_SETTINGS    0x2
+#define FL_WIDGET_NO_CATEGORY 0x3
 
 typedef struct FlWidgetCtx_t {
     const char *id;
@@ -36,11 +38,13 @@ typedef struct FlEditorCtx_t {
 
 FlEditorCtx create_editor_ctx(void);
 
-void editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx);
+const char* editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx);
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx);
 
 b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open);
+
+const FlWidgetCtx* editor_ctx_get_widget(const FlEditorCtx *ctx, const char *identifier);
 
 b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier);
 
@@ -72,7 +76,7 @@ void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win, Camer
 
 void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt);
 
-void render_resource_viewer(struct nk_context *p_ctx, Resources resources);
+void render_resource_manager(struct nk_context *p_ctx, Resources resources);
 
 void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene);
 

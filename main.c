@@ -232,12 +232,12 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
     vec3 global_light_color = {0.0, 0.0, 0.0};
 
     while(fl_ecs_query(p_ecs_ctx, &iter, &entity, &dir_light_comp, 1)) {
-        FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_comp);
+        FlGlobalLight *p_g_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_comp);
 
-        glm_vec3_copy(p_dir_light->direction, global_light_dir);
+        glm_vec3_copy(p_g_light->dir, global_light_dir);
         glm_vec3_normalize(global_light_dir);
 
-        glm_vec3_copy(p_dir_light->color, global_light_color);
+        glm_vec3_copy(p_g_light->color, global_light_color);
         break;
     }
 
@@ -283,8 +283,8 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         euler_radians_transform_xyz(p_transform->rot, normal_mat);
 
         shader_use(*p_shader); {
-            shader_set_uniform_3f(*p_shader, "dir_light.dir",   global_light_dir);
-            shader_set_uniform_3f(*p_shader, "dir_light.color", global_light_color);
+            shader_set_uniform_3f(*p_shader, "global_light.dir",   global_light_dir);
+            shader_set_uniform_3f(*p_shader, "global_light.color", global_light_color);
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, *p_diffuse_texture);
@@ -487,7 +487,7 @@ int main(void) {
     );
 
     const FlComponent DIR_LIGHT_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(FlDirLight)
+        &ecs_ctx, sizeof(FlGlobalLight)
     );
 
     const FlComponent META_ID = fl_ecs_add_component(
@@ -673,17 +673,18 @@ int main(void) {
     
     FlEditorCtx editor_ctx = create_editor_ctx();
 
-    editor_ctx_register_widget(
+    const char *scene_hierarchy_id = editor_ctx_register_widget(
         editor_ctx,
         &(FlWidgetCtx){ .id = "scene hierarchy", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/cube")}
     );
+
     editor_ctx_register_widget(
         editor_ctx,
         &(FlWidgetCtx){ .id = "camera properties", .type = FL_WIDGET_SETTINGS, .p_icon_tex = resources_find(resources, "textures/camera")}
     );
     editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "resource viewer", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/magnify")}
+        &(FlWidgetCtx){ .id = "resource manager", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/magnify")}
     );
     editor_ctx_register_widget(
         editor_ctx,
@@ -703,7 +704,7 @@ int main(void) {
     );
     editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "tutorial", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/star")}
+        &(FlWidgetCtx){ .id = "tutorial", .type = FL_WIDGET_NO_CATEGORY, .p_icon_tex = resources_find(resources, "textures/star")}
     );
 
 
@@ -721,14 +722,14 @@ int main(void) {
         handle_grab(p_win, &editor_ctx, &ecs_ctx, &scene, &comps);
 
         // TODO: remove the selected entity since it is by default passed into the scene itself
-        if(editor_ctx_is_widget_open(editor_ctx, "scene hierarchy"))
+        if(editor_ctx_is_widget_open(editor_ctx, scene_hierarchy_id))
             render_scene_hierarchy(nk_ctx, &scene, &comps, resources);
 
         if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
             render_camera_properties(nk_ctx, p_win, &cam, &cam_settings);
 
-        if(editor_ctx_is_widget_open(editor_ctx, "resource viewer"))
-            render_resource_viewer(nk_ctx, resources);
+        if(editor_ctx_is_widget_open(editor_ctx, "resource manager"))
+            render_resource_manager(nk_ctx, resources);
 
         if(editor_ctx_is_widget_open(editor_ctx, "scene settings"))
             render_scene_settings(nk_ctx, &scene);

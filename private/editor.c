@@ -1,12 +1,19 @@
-#include "fl_ecs.h"
-#include "resources.h"
 #include <editor.h>
+
+#include <cxlist.h>
+
+#include <model.h>
+#include <primitive_resources.h>
+#include <tinydir.h>
 
 #include <hashmap.h>
 #include <string.h>
-#include <utils.h>
 #include <nfd.h>
+
+#include <utils.h>
 #include <camera.h>
+#include <fl_ecs.h>
+#include <resources.h>
 
 static int fl_widget_ctx_cmp(const void *a, const void *b, void *udata) {
     (void) udata;
@@ -29,14 +36,20 @@ FlEditorCtx create_editor_ctx(void) {
     };
 }
 
-void editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx) {
+const char* editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx) {
     assert(p_widget_ctx && "ERROR: cannot register a NULL widget -> p_widget_ctx is NULL");
     assert(p_widget_ctx->id && "ERROR: identifier is required to be initialized -> p_widget_ctx->id is NULL");
     hashmap_set(ctx.widgets, p_widget_ctx);
+    return p_widget_ctx->id;
 }
 
+// TODO: make these const FlEditorCtx *p_ctx instead to be consistent with other piece of code
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
     return hashmap_iter(ctx.widgets, p_iter, (void**)pp_widget_ctx);
+}
+
+const FlWidgetCtx* editor_ctx_get_widget(const FlEditorCtx *ctx, const char *identifier) {
+    return hashmap_get(ctx->widgets, &(FlWidgetCtx){ .id = identifier });
 }
 
 b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open) {
@@ -185,7 +198,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
 
         const FlComponent transform_id = p_comps->transform;
         const FlComponent mesh_render_id = p_comps->mesh_render;
-        const FlComponent dir_light_id = p_comps->dir_light;
+        const FlComponent g_light_id = p_comps->dir_light;
         const FlComponent meta_id = p_comps->meta;
 
         GLuint *p_add_icon = resources_find(resources, "textures/plus");
@@ -225,13 +238,13 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
             }
 
             // TODO: rename directional light as global light
-            if(nk_menu_item_label(p_ctx, "Directional Light", NK_TEXT_LEFT)) {
+            if(nk_menu_item_label(p_ctx, "Global Light", NK_TEXT_LEFT)) {
                 const FlEntityId entity = fl_ecs_entity_add(p_ecs_ctx);
-                fl_ecs_entity_activate_component(p_ecs_ctx, entity, dir_light_id, true);
+                fl_ecs_entity_activate_component(p_ecs_ctx, entity, g_light_id, true);
 
-                FlDirLight *p_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_id);
-                *p_light = (FlDirLight) {
-                    .direction = {0.0f, -1.0f, 0.0f},
+                FlGlobalLight *p_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, g_light_id);
+                *p_light = (FlGlobalLight) {
+                    .dir = {0.0f, -1.0f, 0.0f},
                     .color = {1.0f, 1.0f, 1.0f}
                 };
 
@@ -321,67 +334,85 @@ void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
 
-    if (nk_begin(p_ctx, "Editor Metrics", nk_rect(width - DPI_SCALEX(200 + 20), DPI_SCALEY(50),
-                                                   DPI_SCALEX(200), DPI_SCALEY(50)), EMPTY_NK_WIN_FLAGS)) {
+    struct nk_rect rect = nk_rect(width - DPI_SCALEX(250 + 20), DPI_SCALEY(50), DPI_SCALEX(250), DPI_SCALEY(50));
+
+
+    if (nk_begin(p_ctx, "Editor Metrics", rect, EMPTY_NK_WIN_FLAGS)) {
+        const struct nk_input *in = &p_ctx->input;
+
         float fps = 1.0f / dt;
 
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(15), 1);
         nk_label(p_ctx, "Editor Metrics", NK_TEXT_CENTERED);
         nk_labelf(p_ctx, NK_TEXT_CENTERED, "frames per second(FPS): %.2fs", fps);
 
-        nk_end(p_ctx);
+        if(nk_input_is_mouse_hovering_rect(in, rect))
+            nk_tooltip(p_ctx, "Editor metrics are used to create items");
     }
+    nk_end(p_ctx);
 }
 
 void resources_model_free(void *p_raw) {
     model_free(p_raw);
 }
 
-void render_resource_viewer(struct nk_context *p_ctx, Resources resources) {
-    if (nk_begin(p_ctx, "Resource Viewer", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
+void render_resource_manager(struct nk_context *p_ctx, Resources resources) {
+    if (nk_begin(p_ctx, "Resource Manager", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        // nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
         
         // TODO: the resources loaded must know their name and path, instead of just "primitives/a"
         // Maybe ask the user to have the name of the resource? or just wait for file management to be complete
-        /*if(nk_button_label(p_ctx, "load model")) {*/
-        /**/
-        /*    nfdu8char_t *model_path;*/
-        /*    nfdu8filteritem_t filters[] = { { "Wavefront Obj", "obj" } };*/
-        /**/
-        /*    nfdopendialogu8args_t args = {0};*/
-        /*    args.filterList = filters;*/
-        /*    args.filterCount = arr_size(filters);*/
-        /**/
-        /*    nfdresult_t result = NFD_OpenDialogU8_With(&model_path, &args);*/
-        /**/
-        /*    if (result == NFD_OKAY) {*/
-        /*        puts("Info: Found model at path\n");*/
-        /*        puts(model_path);*/
-        /**/
-        /*        Model *p_model = load_model_obj(model_path);*/
-        /*        resources_store_auto(resources, "primitives/a", p_model, resources_model_free);*/
-        /**/
-        /*        NFD_FreePathU8(model_path);*/
-        /*    }*/
-        /*    else if (result == NFD_CANCEL) {*/
-        /*        puts("Info: pressed cancel.");*/
-        /*    }*/
-        /*    else {*/
-        /*        printf("Error: %s\n", NFD_GetError());*/
-        /*    }*/
-        /*}*/
-        
-        // TODO: sort these under categories
+        if(nk_button_label(p_ctx, "load model")) {
+            nfdu8char_t *model_path;
+            nfdu8filteritem_t filters[] = { { "Wavefront Obj", "obj" } };
 
+            nfdopendialogu8args_t args = {0};
+            args.filterList = filters;
+            args.filterCount = arr_size(filters);
+
+            nfdresult_t result = NFD_OpenDialogU8_With(&model_path, &args);
+
+            if (result == NFD_OKAY) {
+                puts("Info: Found model at path\n");
+                puts(model_path);
+
+                tinydir_file file;
+
+                ResIdStrings *p_id_strings = resources_lazy_get_id_strings(resources);
+
+                if(tinydir_file_open(&file, model_path) == 0) {
+                    printf("Loading model: %s\n", file.name);
+
+                    Model *p_model = load_model_obj_tri(model_path);
+                    char *dup_model_path = strdup(model_path);
+                    resources_store(resources, &(Resource) {
+                        .id = dup_model_path, .p_raw = p_model, .type = FL_RES_MODEL, .free = resources_model_free
+                    });
+
+                    list_append(p_id_strings, dup_model_path);
+
+                    printf("Model loaded: %s\n", file.name);
+                }
+
+                NFD_FreePathU8(model_path);
+            }
+            else if (result == NFD_CANCEL) {
+                puts("Info: pressed cancel.");
+            }
+            else {
+                printf("Error: %s\n", NFD_GetError());
+            }
+        }
+        
         size_t texs_idx = 0;
-        Resource *res_texs[256] = {0};
+        Resource *res_texs[64] = {0};
 
         size_t models_idx = 0;
-        Resource *res_models[256] = {0};
+        Resource *res_models[64] = {0};
 
         size_t shaders_idx = 0;
-        Resource *res_shaders[256] = {0};
+        Resource *res_shaders[64] = {0};
 
         {
             size_t iter = 0;
@@ -475,7 +506,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
         struct nk_image widgets_icon = nk_image_id(*p_icon_tex);
 
-        const size_t WIDGET_CATEGORY_COUNT = 3;
+        const size_t MENU_WIDGET_COUNT = 4;
 
         size_t common_size = 0;
         FlWidgetCtx *common_widgets[32] = {0};
@@ -506,13 +537,16 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
         }
 
         nk_menubar_begin(p_ctx);
-        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), WIDGET_CATEGORY_COUNT);
+
+        nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), MENU_WIDGET_COUNT);
         nk_layout_row_push(p_ctx, DPI_SCALEY(95));
+
+        const float MENU_LABEL_WIDTH = 160;
 
         // TODO: rewrite this to make this less longer, it is repeating too much
         if (nk_menu_begin_image_label(
             p_ctx, "common", NK_TEXT_RIGHT, widgets_icon,
-            nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
+            nk_vec2(DPI_SCALEX(MENU_LABEL_WIDTH), DPI_SCALEY(200))
         )) {
 
             for(size_t i = 0; i < common_size; i++) {
@@ -541,7 +575,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
         if (nk_menu_begin_image_label(
             p_ctx, "settings", NK_TEXT_RIGHT, widgets_icon,
-            nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
+            nk_vec2(DPI_SCALEX(MENU_LABEL_WIDTH), DPI_SCALEY(200))
         )) {
 
             for(size_t i = 0; i < settings_size; i++) {
@@ -570,7 +604,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
         if (nk_menu_begin_image_label(
             p_ctx, "metrics", NK_TEXT_RIGHT, widgets_icon,
-            nk_vec2(DPI_SCALEX(150), DPI_SCALEY(200))
+            nk_vec2(DPI_SCALEX(MENU_LABEL_WIDTH), DPI_SCALEY(200))
         )) {
 
             for(size_t i = 0; i < metrics_size; i++) {
@@ -595,6 +629,15 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
             nk_menu_end(p_ctx);
         }
 
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
+
+        const FlWidgetCtx *p_tut_widget_ctx = editor_ctx_get_widget(p_editor_ctx, "tutorial");
+        assert(p_tut_widget_ctx->p_icon_tex);
+
+        nk_bool is_open = p_tut_widget_ctx->is_open;
+
+        nk_checkbox_label(p_ctx, p_tut_widget_ctx->id, &is_open);
+        editor_ctx_set_widget_open(*p_editor_ctx, p_tut_widget_ctx->id, is_open);
 
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);
@@ -612,12 +655,12 @@ void render_file_browser(struct nk_context *p_ctx) {
 
 typedef b8(*res_filter_combo_func)(Resource *p_res);
 
-b8 res_filter_combo_primitives(Resource *p_res) {
-    return strncmp(p_res->id, "primitives", strlen("primitives")) == 0;
+b8 res_filter_combo_models(Resource *p_res) {
+    return p_res->type == FL_RES_MODEL;
 }
 
 b8 res_filter_combo_textures(Resource *p_res) {
-    return strncmp(p_res->id, "textures", strlen("textures")) == 0;
+    return p_res->type == FL_RES_TEXTURE;
 }
 
 void* resources_filtered_combo_selection(
@@ -684,19 +727,19 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                 if(nk_tree_push(p_ctx, NK_TREE_TAB, "Mesh Render", NK_MAXIMIZED)) {
                     FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, mesh_render_id);
 
-                    const char *models[30] = {0};
+                    const char *models[64] = {0};
 
                     nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 2);
                     nk_label(p_ctx, "Model:", NK_TEXT_LEFT);
                     Model *p_chose_model = resources_filtered_combo_selection(
-                        resources, p_ctx, p_mesh_render->p_model, models, arr_size(models), res_filter_combo_primitives
+                        resources, p_ctx, p_mesh_render->p_model, models, arr_size(models), res_filter_combo_models
                     );
 
                     p_mesh_render->p_model = p_chose_model;
 
 
                     // TODO: requires fall back texture
-                    const char *textures[30] = {0};
+                    const char *textures[64] = {0};
 
                     nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 2);
                     nk_label(p_ctx, "Diffuse Map:", NK_TEXT_LEFT);
@@ -740,11 +783,11 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
             const FlComponent dir_light_id = p_comps->dir_light;
             if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, dir_light_id)) {
-                FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, dir_light_id);
+                FlGlobalLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, dir_light_id);
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
                 if(nk_tree_push(p_ctx, NK_TREE_TAB, "Directional Light", NK_MAXIMIZED)) {
-                    fl_xyz_widget(p_ctx, "Direction", p_dir_light->direction, -1, 1);
+                    fl_xyz_widget(p_ctx, "Direction", p_dir_light->dir, -1, 1);
 
                     nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 2);
                     nk_label(p_ctx, "Color", NK_TEXT_LEFT);

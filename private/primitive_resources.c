@@ -97,9 +97,7 @@ void resources_idstrings_free(void *p_raw) {
     free(p_strs);
 }
 
-void resources_load_dir_recursive(Resources res, size_t depth, const char *path) {
-    tinydir_dir vendor_dir = {0};
-
+ResIdStrings* resources_lazy_get_id_strings(Resources res) {
     const char *ALLOC_RES_STRING_ID = "__ALLOC_RES_STRINGS__";
 
     // lazy allocation
@@ -116,6 +114,14 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
 
         printf("pstr: %p\n", (void*)p_strings);
     }
+
+    return p_strings;
+}
+
+void resources_load_dir_recursive(Resources res, size_t depth, const char *path) {
+    tinydir_dir vendor_dir = {0};
+
+    ResIdStrings *p_strings = resources_lazy_get_id_strings(res);
 
     if(tinydir_open(&vendor_dir, path) == -1) {
         perror("ERROR: cannot open vendor directory!");

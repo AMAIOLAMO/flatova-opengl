@@ -7,7 +7,7 @@ struct Material {
     float specular_factor;
 };
 
-struct DirLight {
+struct GlobalLight {
     vec3 dir;
     vec3 color;
 };
@@ -19,7 +19,7 @@ struct PointLight {
 };
 
 uniform Material material;
-uniform DirLight dir_light;
+uniform GlobalLight global_light;
 uniform vec3 cam_pos;
 
 in vec2 uv;
@@ -33,7 +33,7 @@ float light_strength = 1.0f;
 float ambient_strength = 0.3f;
 float specular_strength = 1.0f;
 
-vec3 calc_dir_light(vec3 light_dir, vec3 light_color) {
+vec3 calc_global_light(vec3 light_dir, vec3 light_color) {
     vec3 n = normalize(norm);
     vec3 cam_dir = normalize(cam_pos - frag_pos);
 
@@ -55,7 +55,7 @@ vec3 calc_dir_light(vec3 light_dir, vec3 light_color) {
 
 void main() {
     // RESULT
-    vec3 result = calc_dir_light(dir_light.dir, dir_light.color);
+    vec3 result = calc_global_light(global_light.dir, global_light.color);
 
     FragColor = vec4(result, 1.0f);
 }

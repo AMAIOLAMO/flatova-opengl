@@ -28,10 +28,10 @@ typedef struct FlMeta_t {
     char name[FL_META_NAME_LEN_MAX + 1];
 } FlMeta;
 
-typedef struct FlDirLight_t {
-    vec3 direction;
+typedef struct FlGlobalLight_t {
+    vec3 dir;
     vec3 color;
-} FlDirLight;
+} FlGlobalLight;
 
 void transform_apply(FlTransform transform, mat4 applied_mat);
 
