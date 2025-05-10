@@ -359,11 +359,12 @@ void resources_model_free(void *p_raw) {
 void render_resource_manager(struct nk_context *p_ctx, Resources resources) {
     if (nk_begin(p_ctx, "Resource Manager", nk_rect(DPI_SCALEX(20), DPI_SCALEY(400),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
         
-        // TODO: the resources loaded must know their name and path, instead of just "primitives/a"
-        // Maybe ask the user to have the name of the resource? or just wait for file management to be complete
-        if(nk_button_label(p_ctx, "load model")) {
+        GLuint *p_model_icon = resources_find(resources, "textures/cube");
+        assert(p_model_icon && "ERROR: button image cannot be null -> p_model_icon is NULL");
+
+        if(nk_button_image_label(p_ctx, nk_image_id(*p_model_icon), "load model", NK_TEXT_RIGHT)) {
             nfdu8char_t *model_path;
             nfdu8filteritem_t filters[] = { { "Wavefront Obj", "obj" } };
 
@@ -440,11 +441,13 @@ void render_resource_manager(struct nk_context *p_ctx, Resources resources) {
         if (nk_tree_push(p_ctx, NK_TREE_NODE, "Textures", NK_MINIMIZED)) {
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 2);
 
+
             for(size_t i = 0; i < texs_idx - 1; i++) {
                 Resource *p_res = res_texs[i];
                 nk_labelf(p_ctx, NK_TEXT_LEFT, "[%zu] %s: ", i, p_res->id);
                 nk_labelf(p_ctx, NK_TEXT_RIGHT, "%p", p_res->p_raw);
             }
+
             
             nk_tree_pop(p_ctx);
         }

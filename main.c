@@ -673,6 +673,7 @@ int main(void) {
     
     FlEditorCtx editor_ctx = create_editor_ctx();
 
+    // TODO: replace all the ids below to use variables instead of constants, this will reduce duplication
     const char *scene_hierarchy_id = editor_ctx_register_widget(
         editor_ctx,
         &(FlWidgetCtx){ .id = "scene hierarchy", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/cube")}
