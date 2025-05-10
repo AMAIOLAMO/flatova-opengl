@@ -525,7 +525,7 @@ int main(void) {
     {
         struct nk_font_atlas *nk_atlas;
 
-        const int DEFAULT_FONT_SIZE = 16;
+        const int DEFAULT_FONT_SIZE = 18;
         const int DPI_SCALED_FONT_SIZE = g_scaling_x(DEFAULT_FONT_SIZE);
 
         nk_glfw3_font_stash_begin(&nk_glfw, &nk_atlas);
@@ -739,8 +739,11 @@ int main(void) {
         if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
             render_entity_inspector(nk_ctx, &scene, resources, &comps);
 
+        int w, h;
+        glfwGetWindowSize(p_win, &w, &h);
+
         if(editor_ctx_is_widget_open(editor_ctx, "tutorial"))
-            render_tutorial(nk_ctx, resources);
+            render_tutorial(nk_ctx, (vec2){w, h}, resources);
 
         render_editor_metrics(nk_ctx, p_win, dt);
 

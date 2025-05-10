@@ -9,7 +9,8 @@ srcs += files(
   'editor.c',
   'fl_ecs.c',
   'common.c',
-  'extra_widgets.c'
+  'extra_widgets.c',
+  'animation.c'
 )
 
 subdir('impls')

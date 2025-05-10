@@ -251,7 +251,7 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         size_t iter = 0;
         FlEntityId entity;
 
-        if (nk_tree_push(p_ctx, NK_TREE_NODE, "Entities", NK_MINIMIZED)) {
+        if (nk_tree_push(p_ctx, NK_TREE_TAB, "Entities", NK_MAXIMIZED)) {
             char txt_buf[FL_META_NAME_LEN_MAX + 256] = {0};
 
             FlEntityId entity_to_delete;
@@ -328,8 +328,9 @@ void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(15), 1);
         nk_label(p_ctx, "Editor Metrics", NK_TEXT_CENTERED);
         nk_labelf(p_ctx, NK_TEXT_CENTERED, "frames per second(FPS): %.2fs", fps);
+
+        nk_end(p_ctx);
     }
-    nk_end(p_ctx);
 }
 
 void resources_model_free(void *p_raw) {
@@ -652,96 +653,89 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
         FlEcsCtx *p_ecs_ctx = p_scene->p_ecs_ctx;
 
 
-        // TODO: HACK entity checking is not strict here, it will break when we introduce deleting of entities
-        // since we will move around the entity IDs in memory, so FlEntity cannot be directly used to check whether or not
-        // it is a valid entity
         if(fl_ecs_entity_valid(p_ecs_ctx, p_scene->selected_entity)) {
             const FlComponent transform_id = p_comps->transform;
-            nk_flags group_flags = NK_WINDOW_BORDER | NK_WINDOW_TITLE;
 
             if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, p_comps->meta)) {
                 FlMeta *p_meta = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, p_comps->meta);
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(50), 1);
+                nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
                 nk_labelf(p_ctx, NK_TEXT_CENTERED, "%s", p_meta->name);
             }
 
             // TODO: this should be separated, each component should handle their own rendering, instead of being rendered here
             // RENDER TRANSFORM
             if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, transform_id)) {
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(100), 1);
+                nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
+                if(nk_tree_push(p_ctx, NK_TREE_TAB, "Transform", NK_MAXIMIZED)) {
+                    FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, transform_id);
 
-                nk_group_begin(p_ctx, "Transform", group_flags);
-                FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, transform_id);
-                
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                fl_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
-
-                fl_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
-                fl_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
-                nk_group_end(p_ctx);
+                    fl_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
+                    fl_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
+                    fl_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+                    nk_tree_pop(p_ctx);
+                }
             }
 
             // RENDER MESH RENDER
             const FlComponent mesh_render_id = p_comps->mesh_render;
             if(fl_ecs_entity_has_component(p_ecs_ctx, p_scene->selected_entity, mesh_render_id)) {
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(350), 1);
+                nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
 
-                nk_group_begin(p_ctx, "Mesh Render", group_flags);
+                if(nk_tree_push(p_ctx, NK_TREE_TAB, "Mesh Render", NK_MAXIMIZED)) {
+                    FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, mesh_render_id);
 
-                FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, mesh_render_id);
+                    const char *models[30] = {0};
 
-                const char *models[30] = {0};
+                    nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 2);
+                    nk_label(p_ctx, "Model:", NK_TEXT_LEFT);
+                    Model *p_chose_model = resources_filtered_combo_selection(
+                        resources, p_ctx, p_mesh_render->p_model, models, arr_size(models), res_filter_combo_primitives
+                    );
 
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
-                nk_label(p_ctx, "Model:", NK_TEXT_LEFT);
-                Model *p_chose_model = resources_filtered_combo_selection(
-                    resources, p_ctx, p_mesh_render->p_model, models, arr_size(models), res_filter_combo_primitives
-                );
-
-                p_mesh_render->p_model = p_chose_model;
+                    p_mesh_render->p_model = p_chose_model;
 
 
-                
-                // TODO: requires fall back texture
-                const char *textures[30] = {0};
+                    // TODO: requires fall back texture
+                    const char *textures[30] = {0};
 
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
-                nk_label(p_ctx, "Diffuse Map:", NK_TEXT_LEFT);
-                GLuint *p_diffuse_tex = resources_filtered_combo_selection(
-                    resources, p_ctx, p_mesh_render->p_diffuse_tex, textures, arr_size(textures), res_filter_combo_textures
-                );
+                    nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 2);
+                    nk_label(p_ctx, "Diffuse Map:", NK_TEXT_LEFT);
+                    GLuint *p_diffuse_tex = resources_filtered_combo_selection(
+                        resources, p_ctx, p_mesh_render->p_diffuse_tex, textures, arr_size(textures), res_filter_combo_textures
+                    );
 
-                p_mesh_render->p_diffuse_tex = p_diffuse_tex;
+                    p_mesh_render->p_diffuse_tex = p_diffuse_tex;
 
-                assert(p_mesh_render->p_diffuse_tex);
-                struct nk_image diffuse_map = nk_image_id(*p_mesh_render->p_diffuse_tex);
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                    assert(p_mesh_render->p_diffuse_tex);
+                    struct nk_image diffuse_map = nk_image_id(*p_mesh_render->p_diffuse_tex);
+                    nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
 
-                nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
-                nk_layout_row_push(p_ctx, DPI_SCALEX(50));
-                nk_image(p_ctx, diffuse_map);
-                nk_layout_row_end(p_ctx);
+                    nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
+                    nk_layout_row_push(p_ctx, DPI_SCALEX(50));
+                    nk_image(p_ctx, diffuse_map);
+                    nk_layout_row_end(p_ctx);
 
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
-                nk_label(p_ctx, "Specular Map:", NK_TEXT_LEFT);
-                GLuint *p_specular_tex = resources_filtered_combo_selection(
-                    resources, p_ctx, p_mesh_render->p_specular_tex, textures, arr_size(textures), res_filter_combo_textures
-                );
+                    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+                    nk_label(p_ctx, "Specular Map:", NK_TEXT_LEFT);
+                    GLuint *p_specular_tex = resources_filtered_combo_selection(
+                        resources, p_ctx, p_mesh_render->p_specular_tex, textures, arr_size(textures), res_filter_combo_textures
+                    );
 
-                p_mesh_render->p_specular_tex = p_specular_tex;
+                    p_mesh_render->p_specular_tex = p_specular_tex;
 
-                assert(p_mesh_render->p_specular_tex);
-                struct nk_image specular_map = nk_image_id(*p_mesh_render->p_specular_tex);
+                    assert(p_mesh_render->p_specular_tex);
+                    struct nk_image specular_map = nk_image_id(*p_mesh_render->p_specular_tex);
 
-                nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
-                nk_layout_row_push(p_ctx, DPI_SCALEX(50));
-                nk_image(p_ctx, specular_map);
-                nk_layout_row_end(p_ctx);
+                    nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(50), 1);
+                    nk_layout_row_push(p_ctx, DPI_SCALEX(50));
+                    nk_image(p_ctx, specular_map);
+                    nk_layout_row_end(p_ctx);
 
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
+                    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
+                    nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
 
-                nk_group_end(p_ctx);
+                    nk_tree_pop(p_ctx);
+                }
             }
 
             const FlComponent dir_light_id = p_comps->dir_light;
@@ -749,15 +743,19 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                 FlDirLight *p_dir_light = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, dir_light_id);
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
-                fl_xyz_widget(p_ctx, "Direction", p_dir_light->direction, -1, 1);
+                if(nk_tree_push(p_ctx, NK_TREE_TAB, "Directional Light", NK_MAXIMIZED)) {
+                    fl_xyz_widget(p_ctx, "Direction", p_dir_light->direction, -1, 1);
 
-                nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 2);
-                nk_label(p_ctx, "Color", NK_TEXT_LEFT);
-                fl_combo_color_picker_vec3(p_ctx, &p_dir_light->color);
+                    nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 2);
+                    nk_label(p_ctx, "Color", NK_TEXT_LEFT);
+                    fl_combo_color_picker_vec3(p_ctx, &p_dir_light->color);
+
+                    nk_tree_pop(p_ctx);
+                }
             }
         }
         else {
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
             nk_label(p_ctx, "Select an Entity in the Scene Hierarchy", NK_TEXT_CENTERED);
             nk_label(p_ctx, "to view their components!", NK_TEXT_CENTERED);
         }
@@ -765,27 +763,25 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
     nk_end(p_ctx);
 }
 
-void render_tutorial(struct nk_context *p_ctx, Resources resources) {
-    if (nk_begin(p_ctx, "Tutorial",
-                 nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
-                 DEFAULT_NK_WIN_FLAGS)) {
-        GLuint *p_eye = resources_find(resources, "textures/eye");
-
-        nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 2), 1);
+void render_tutorial(struct nk_context *p_ctx, vec2 win_size, Resources resources) {
+    (void) resources;
+    struct nk_rect rect = nk_rect(0, 0, DPI_SCALEX(700), DPI_SCALEY(500));
+    rect.x = (win_size[0] - rect.w) * 0.5f;
+    rect.y = (win_size[1] - rect.h) * 0.5f;
+    
+    if (nk_begin(p_ctx, "Tutorial", rect, DEFAULT_NK_WIN_FLAGS)) {
+        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
         nk_label_wrap(p_ctx, "This tutorial serves as a basic guide on how to navigate, use and create stuff in Flatova!");
 
         if(nk_tree_push(p_ctx, NK_TREE_NODE, "Interface", NK_MINIMIZED)) {
-            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 2), 1);
+            nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 1);
             nk_label_wrap(p_ctx, "The major interfaces of Flatova consists of the following:");
-
-            nk_layout_row_static(p_ctx, DPI_SCALEY(50), DPI_SCALEX(50), 1);
-            nk_image(p_ctx, nk_image_id(*p_eye));
-
 
             nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
             if(nk_tree_push(p_ctx, NK_TREE_TAB, "Menubar", NK_MINIMIZED)) {
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 2), 1);
-                nk_label_wrap(p_ctx, "Menubar is the long strip of UI at the top of the application.");
+                nk_label_wrap(p_ctx, "Menubar is the long strip of UI at the top of the application. " \
+                              "It is the most important place to enable most of the functionalities in the editor.");
                 nk_tree_pop(p_ctx);
             }
 
@@ -796,25 +792,26 @@ void render_tutorial(struct nk_context *p_ctx, Resources resources) {
                 nk_tree_pop(p_ctx);
             }
 
-            
             if(nk_tree_push(p_ctx, NK_TREE_TAB, "Viewport", NK_MINIMIZED)) {
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 3), 1);
-                nk_label_wrap(p_ctx, "Widgets in Flatova are considered to be tiny floating widgets. " \
-                              "The tutorial window you see right now is a widget as well. They can be enabled by going to the menu bar");
+                nk_label_wrap(p_ctx, "The viewport is the main renderer of the scene. " \
+                              "what you see in the background is considered a Viewport!");
+
+                nk_label_wrap(p_ctx, "In the viewport, you can hold right click to drag and look around. " \
+                              "W A S D to move around the scene");
                 nk_tree_pop(p_ctx);
             }
 
             if(nk_tree_push(p_ctx, NK_TREE_TAB, "Editor Metrics", NK_MINIMIZED)) {
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20 * 3), 1);
-                nk_label_wrap(p_ctx, "Widgets in Flatova are considered to be tiny floating widgets. " \
-                              "The tutorial window you see right now is a widget as well. They can be enabled by going to the menu bar");
+                nk_label_wrap(p_ctx, "Editor metrics show up at the top right of the Viewport. " \
+                              "They represent your Editor's current performance and some debug information.");
                 nk_tree_pop(p_ctx);
             }
 
             nk_tree_pop(p_ctx);
         }
 
-
-        nk_end(p_ctx);
     }
+    nk_end(p_ctx);
 }

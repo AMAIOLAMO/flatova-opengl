@@ -9,3 +9,13 @@ ecs_tests = executable(
 )
 
 test('Entity Component System Tests', ecs_tests)
+
+animation_tests = executable(
+  'animation_tests',
+  sources: srcs + files('animation_tests.c'),
+  include_directories: includes,
+  dependencies: deps,
+
+  link_args: '-lm'
+)
+test('Fl Animation Tests', animation_tests)
