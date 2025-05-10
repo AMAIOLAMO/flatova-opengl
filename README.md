@@ -3,7 +3,14 @@
 # FLATOVA
 An **OpenGL based rendering engine**, featuring simplistic **Entity Component System(ECS)**, and written conforming **C89 standard**.
 
-*INSERT PICTURES HERE*
+## Screenshots
+
+![Screenshot1](screenshots/screenshot_1.png)
+
+![Screenshot2](screenshots/screenshot_2.png)
+
+![Screenshot3](screenshots/screenshot_3.png)
+Thanks to Igor Rogov for his [Medieval Tavern!](https://sketchfab.com/3d-models/low-poly-medieval-tavern-0ceb0634c89349b6bec27d19228835e9)
 
 ---
 ## Installation
