@@ -119,9 +119,23 @@ void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float
 
     nk_layout_row_dynamic(p_ctx, DPI_SCALEY(18), 4);
     nk_label(p_ctx, name, NK_TEXT_LEFT);
+
+    struct nk_color o_color = p_ctx->style.property.border_color;
+    float o_border = p_ctx->style.property.border;
+
+    p_ctx->style.property.border = DPI_SCALEX(2);
+
+    p_ctx->style.property.border_color = (struct nk_color){150, 30, 70, 255};
     nk_property_float(p_ctx, "#x:", min, &p_pos[0], max, 0.1f, 0.2f);
+
+    p_ctx->style.property.border_color = (struct nk_color){30, 150, 70, 255};
     nk_property_float(p_ctx, "#y:", min, &p_pos[1], max, 0.1f, 0.2f);
+
+    p_ctx->style.property.border_color = (struct nk_color){60, 50, 200, 255};
     nk_property_float(p_ctx, "#z:", min, &p_pos[2], max, 0.1f, 0.2f);
+
+    p_ctx->style.property.border_color = o_color;
+    p_ctx->style.property.border = o_border;
 }
 
 void fl_combo_color_picker_vec4(struct nk_context *p_ctx, vec4 *p_color) {
@@ -312,20 +326,40 @@ void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win, Camer
     // camera properties
     if (nk_begin(p_ctx, "Camera Properties", nk_rect(width - DPI_SCALEX(340 + 20), DPI_SCALEY(50),
                                                       DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
-        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
-        fl_xyz_widget(p_ctx, "Position: ", p_cam->pos, -HUGE_VALUEF, HUGE_VALUEF);
+        if(nk_tree_push(p_ctx, NK_TREE_TAB, "Transform", NK_MAXIMIZED)) {
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
+            fl_xyz_widget(p_ctx, "Position: ", p_cam->pos, -HUGE_VALUEF, HUGE_VALUEF);
 
-        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 3);
-        nk_label(p_ctx, "Rotation: ", NK_TEXT_LEFT);
-        nk_property_float(p_ctx, "h(rad):", -FL_TAU, &p_cam->h_rot, FL_TAU, 0.1f, 0.01f);
-        nk_property_float(p_ctx, "v(rad):", glm_rad(-89.0f), &p_cam->v_rot, glm_rad(89.0f), 0.1f, 0.01f);
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 3);
+            nk_label(p_ctx, "Rotation: ", NK_TEXT_LEFT);
+            nk_property_float(p_ctx, "h(rad):", -FL_TAU, &p_cam->h_rot, FL_TAU, 0.1f, 0.01f);
+            nk_property_float(p_ctx, "v(rad):", glm_rad(-89.0f), &p_cam->v_rot, glm_rad(89.0f), 0.1f, 0.01f);
 
-        nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
-        nk_property_float(p_ctx, "Field of view(rad):", 0.01f, &p_cam->fov, FL_PI, 0.1f, 0.01f);
-        nk_property_float(p_ctx, "near plane(meter):", 0.01f,  &p_cam->near, HUGE_VALUEF, 0.1f, 0.01f);
-        nk_property_float(p_ctx, "far plane(meter):", 0.01f,   &p_cam->far,  HUGE_VALUEF, 0.1f, 0.01f);
+            nk_tree_pop(p_ctx);
+        }
 
-        nk_property_float(p_ctx, "speed multiplier:", 0.01f, &p_cam_settings->speed_multiplier, HUGE_VALUEF, 0.1f, 0.01f);
+        if(nk_tree_push(p_ctx, NK_TREE_TAB, "View", NK_MAXIMIZED)) {
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 2);
+            nk_label(p_ctx, "Field of View: ", NK_TEXT_LEFT);
+            nk_property_float(p_ctx, "#(rad):", 0.01f, &p_cam->fov, FL_PI, 0.1f, 0.01f);
+
+            nk_label(p_ctx, "Near Plane: ", NK_TEXT_LEFT);
+            nk_property_float(p_ctx, "#(meter):", 0.01f,  &p_cam->near, HUGE_VALUEF, 0.1f, 0.01f);
+
+            nk_label(p_ctx, "Far Plane: ", NK_TEXT_LEFT);
+            nk_property_float(p_ctx, "#(meter):", 0.01f,   &p_cam->far,  HUGE_VALUEF, 0.1f, 0.01f);
+
+
+            nk_tree_pop(p_ctx);
+        }
+
+        if(nk_tree_push(p_ctx, NK_TREE_TAB, "Fly Movement", NK_MAXIMIZED)) {
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 2);
+            nk_label(p_ctx, "Fly Speed: ", NK_TEXT_LEFT);
+            nk_property_float(p_ctx, "#(m/s)", 0.01f, &p_cam_settings->speed_multiplier, HUGE_VALUEF, 0.1f, 0.01f);
+
+            nk_tree_pop(p_ctx);
+        }
     }
     nk_end(p_ctx);
 }
@@ -347,7 +381,7 @@ void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt
         nk_labelf(p_ctx, NK_TEXT_CENTERED, "frames per second(FPS): %.2fs", fps);
 
         if(nk_input_is_mouse_hovering_rect(in, rect))
-            nk_tooltip(p_ctx, "Editor metrics are used to create items");
+            nk_tooltip(p_ctx, "Editor metrics displays editor performance");
     }
     nk_end(p_ctx);
 }
@@ -715,9 +749,10 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                 if(nk_tree_push(p_ctx, NK_TREE_TAB, "Transform", NK_MAXIMIZED)) {
                     FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs_ctx, p_scene->selected_entity, transform_id);
 
-                    fl_xyz_widget(p_ctx, "Position", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
-                    fl_xyz_widget(p_ctx, "Rotation", p_transform->rot, -FL_TAU, FL_TAU);
-                    fl_xyz_widget(p_ctx, "Scale", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+                    fl_xyz_widget(p_ctx, "Position: ", p_transform->pos, -HUGE_VALUEF, HUGE_VALUEF);
+                    fl_xyz_widget(p_ctx, "Rotation: ", p_transform->rot, -FL_TAU, FL_TAU);
+                    fl_xyz_widget(p_ctx, "Scale: ", p_transform->scale, -HUGE_VALUEF, HUGE_VALUEF);
+
                     nk_tree_pop(p_ctx);
                 }
             }
@@ -777,8 +812,9 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
                     nk_image(p_ctx, specular_map);
                     nk_layout_row_end(p_ctx);
 
-                    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 1);
-                    nk_property_float(p_ctx, "Specular Factor", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
+                    nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
+                    nk_label(p_ctx, "Specular Factor: ", NK_TEXT_LEFT);
+                    nk_property_float(p_ctx, "", 0, &p_mesh_render->specular_factor, 500, 0.1f, 0.01f);
 
                     nk_tree_pop(p_ctx);
                 }
@@ -790,10 +826,10 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
 
                 nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 1);
                 if(nk_tree_push(p_ctx, NK_TREE_TAB, "Directional Light", NK_MAXIMIZED)) {
-                    fl_xyz_widget(p_ctx, "Direction", p_dir_light->dir, -1, 1);
+                    fl_xyz_widget(p_ctx, "Direction: ", p_dir_light->dir, -1, 1);
 
                     nk_layout_row_dynamic(p_ctx, DPI_SCALEX(25), 2);
-                    nk_label(p_ctx, "Color", NK_TEXT_LEFT);
+                    nk_label(p_ctx, "Color: ", NK_TEXT_LEFT);
                     fl_combo_color_picker_vec3(p_ctx, &p_dir_light->color);
 
                     nk_tree_pop(p_ctx);

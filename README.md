@@ -1,3 +1,5 @@
+[Flatova Icon](fl_logo_iter1.png)
+
 # FLATOVA
 An **OpenGL based rendering engine**, featuring simplistic **Entity Component System(ECS)**, and written conforming **C89 standard**.
 
