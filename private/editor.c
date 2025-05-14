@@ -29,17 +29,18 @@ static uint64_t fl_widget_ctx_hash(const void *item, uint64_t seed0, uint64_t se
     return hashmap_sip(res->id, strlen(res->id), seed0, seed1);
 }
 
-FlEditorCtx create_editor_ctx(void) {
-    return (FlEditorCtx) {
-        .widgets = hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL),
-        .mode = FL_EDITOR_VIEW
-    };
+struct hashmap* editor_ctx_create_widgets(void) {
+    return hashmap_new(sizeof(FlWidgetCtx), 0, 0, 0, fl_widget_ctx_hash, fl_widget_ctx_cmp, NULL, NULL);
 }
 
-const char* editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx) {
+void editor_ctx_free_widgets(struct hashmap *widgets) {
+    hashmap_free(widgets);
+}
+
+const char* editor_ctx_register_widget(FlEditorCtx *p_ctx, FlWidgetCtx *p_widget_ctx) {
     assert(p_widget_ctx && "ERROR: cannot register a NULL widget -> p_widget_ctx is NULL");
     assert(p_widget_ctx->id && "ERROR: identifier is required to be initialized -> p_widget_ctx->id is NULL");
-    hashmap_set(ctx.widgets, p_widget_ctx);
+    hashmap_set(p_ctx->widgets, p_widget_ctx);
     return p_widget_ctx->id;
 }
 
@@ -75,13 +76,6 @@ b8 editor_ctx_is_widget_open(const FlEditorCtx *p_ctx, const char *identifier) {
     
     return scene_widget->is_open;
 }
-
-void editor_ctx_free(FlEditorCtx ctx) {
-    hashmap_free(ctx.widgets);
-}
-
-
-
 
 
 FlScaling __g_scaling_handle = {{1.0f, 1.0f}};

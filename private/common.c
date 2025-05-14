@@ -8,7 +8,3 @@ void transform_apply(FlTransform transform, mat4 applied_mat) {
     glm_scale(applied_mat, transform.scale);
 }
 
-void scene_free(FlScene *p_scene) {
-    (void) p_scene;
-}
-

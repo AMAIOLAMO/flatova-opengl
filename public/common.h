@@ -51,7 +51,5 @@ typedef struct FlScene_t {
     FlEcsCtx *p_ecs_ctx;
 } FlScene;
 
-void scene_free(FlScene *p_scene);
-
 
 #endif // _COMMON_H

@@ -99,6 +99,18 @@ static inline size_t fl_ecs_get_comp_table_idx(FlEcsCtx *p_ctx, FlEntityId entit
     return component_id * p_ctx->entity_cap + fl_ecs_entity_get_associated_idx(p_ctx, entity_id);
 }
 
+/* TODO: instead of returning the Component each time, which is quite annoying since we
+ need to pass values everytime, we can just associate a component type id
+ to its actual ID
+
+ each Component should have a unique id themselves
+ #define fl_ecs_define_type(COMP_TYPE) \
+     const char *__ecs_type_##COMP_TYPE##_id = (void*)(COMP_TYPE*)#COMP_TYPE
+
+ #define fl_ecs_type_id(COMP_TYPE) __ecs_type_##COMP_TYPE##_id
+
+ fl_ecs_define_type(FlTransform);
+*/
 
 FlComponent fl_ecs_add_component(FlEcsCtx *p_ctx, size_t component_bytes_size) {
     const FlComponent COMP_ID = p_ctx->g_component_id++;

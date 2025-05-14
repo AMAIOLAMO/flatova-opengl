@@ -444,6 +444,7 @@ int fl_glfw_init(GLFWwindow **pp_win) {
 
     // GLFW CALLBACKS
     glfwSetFramebufferSizeCallback(p_win, framebuffer_size_callback);
+    glfwSetCursorPosCallback(p_win, glfw_cursor_callback);
 
     GLFWmonitor *primary_monitor = glfwGetPrimaryMonitor();
     float dpi_xscale, dpi_yscale;
@@ -461,12 +462,12 @@ typedef struct FlId2Idx_t {
     size_t idx;
 } FlId2Idx;
 
-void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
+void handle_grab(FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
                  FlScene *p_scene, FlEditorComponents *p_comps) {
     static vec3 original_location;
     static double orig_grab_x, orig_grab_y;
 
-    if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && p_editor->mode != FL_EDITOR_GRAB) {
+    if(glfwGetKey(p_editor->p_win, GLFW_KEY_G) == GLFW_PRESS && p_editor->mode != FL_EDITOR_GRAB) {
 
         if(fl_ecs_entity_valid(p_ecs, p_scene->selected_entity) &&
            fl_ecs_entity_has_component(p_ecs, p_scene->selected_entity, p_comps->transform)) {
@@ -474,7 +475,7 @@ void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
                 p_ecs, p_scene->selected_entity, p_comps->transform
             );
 
-            glfwGetCursorPos(p_win, &orig_grab_x, &orig_grab_y);
+            glfwGetCursorPos(p_editor->p_win, &orig_grab_x, &orig_grab_y);
 
             p_editor->mode = FL_EDITOR_GRAB;
             glm_vec3_copy(p_transform->pos, original_location);
@@ -492,7 +493,7 @@ void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
         camera_up(cam, up);
 
         static double new_grab_x, new_grab_y;
-        glfwGetCursorPos(p_win, &new_grab_x, &new_grab_y);
+        glfwGetCursorPos(p_editor->p_win, &new_grab_x, &new_grab_y);
 
         vec2 grab_diff = {
             new_grab_x - orig_grab_x,
@@ -519,7 +520,7 @@ void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
 
         }
 
-        if(glfwGetMouseButton(p_win, GLFW_MOUSE_BUTTON_LEFT)) {
+        if(glfwGetMouseButton(p_editor->p_win, GLFW_MOUSE_BUTTON_LEFT)) {
             p_editor->mode = FL_EDITOR_VIEW;
 
             printf("Applying transform\n");
@@ -537,44 +538,112 @@ void print_working_directory(void) {
     printf("running on working directory: %s\n", cwd_path);
 }
 
-typedef struct FlEditorWidgetIds_t {
-    literal_str scene_hierarchy, cam_properties, res_manager,
-    scene_settings, file_browser, entity_inspector,
-    console, tutorial;
-} FlEditorWidgetIds;
+void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources resources) {
+    p_ids->scene_hierarchy = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "scene hierarchy",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/cube")
+        }
+    );
 
-void handle_widgets(FlEditorCtx *p_ctx, struct nk_context *p_nk_ctx,
-                    FlScene *p_scene, GLFWwindow *p_win,
+    p_ids->cam_properties = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "camera properties",
+            .type = FL_WIDGET_SETTINGS,
+            .p_icon_tex = resources_find(resources, "textures/camera")
+        }
+    );
+    p_ids->res_manager = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "resource manager",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/magnify")
+        }
+    );
+    p_ids->scene_settings = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "scene settings",
+            .type = FL_WIDGET_SETTINGS,
+            .p_icon_tex = resources_find(resources, "textures/cog")
+        }
+    );
+    p_ids->file_browser = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "file browser",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/folder")
+        }
+    );
+    p_ids->entity_inspector = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "entity inspector",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/eye")
+        }
+    );
+    p_ids->console = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "console",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/question")
+        }
+    );
+
+    p_ids->tutorial = editor_ctx_register_widget(
+        p_ctx,
+        &(FlWidgetCtx){
+            .id = "tutorial",
+            .type = FL_WIDGET_NO_CATEGORY,
+            .p_icon_tex = resources_find(resources, "textures/star"),
+            .is_open = true
+        }
+    );
+}
+
+
+void render_widgets(FlEditorCtx *p_ctx, FlScene *p_scene,
                     Resources resources, FlEditorComponents *p_comps,
                     FlEditorWidgetIds *p_ids, float dt) {
+    render_main_menubar(p_ctx->p_nk_ctx, p_ctx->p_win, resources, p_ctx);
+
     if(editor_ctx_is_widget_open(p_ctx, p_ids->scene_hierarchy))
-        render_scene_hierarchy(p_nk_ctx, p_scene, p_comps, resources);
+        render_scene_hierarchy(p_ctx->p_nk_ctx, p_scene, p_comps, resources);
 
     if(editor_ctx_is_widget_open(p_ctx, p_ids->cam_properties))
-        render_camera_properties(p_nk_ctx, p_win, &cam, &cam_settings);
+        render_camera_properties(p_ctx->p_nk_ctx, p_ctx->p_win, &cam, &cam_settings);
 
     if(editor_ctx_is_widget_open(p_ctx, p_ids->res_manager))
-        render_resource_manager(p_nk_ctx, resources);
+        render_resource_manager(p_ctx->p_nk_ctx, resources);
 
     if(editor_ctx_is_widget_open(p_ctx, p_ids->scene_settings))
-        render_scene_settings(p_nk_ctx, p_scene);
+        render_scene_settings(p_ctx->p_nk_ctx, p_scene);
 
     if(editor_ctx_is_widget_open(p_ctx, p_ids->file_browser))
-        render_file_browser(p_nk_ctx);
+        render_file_browser(p_ctx->p_nk_ctx);
 
     if(editor_ctx_is_widget_open(p_ctx, p_ids->entity_inspector))
-        render_entity_inspector(p_nk_ctx, p_scene, resources, p_comps);
+        render_entity_inspector(p_ctx->p_nk_ctx, p_scene, resources, p_comps);
 
     int w, h;
-    glfwGetWindowSize(p_win, &w, &h);
+    glfwGetWindowSize(p_ctx->p_win, &w, &h);
 
     if(editor_ctx_is_widget_open(p_ctx, p_ids->tutorial))
-        render_tutorial(p_nk_ctx, (vec2){w, h}, resources);
+        render_tutorial(p_ctx->p_nk_ctx, (vec2){w, h}, resources);
 
-    render_editor_metrics(p_nk_ctx, p_win, dt);
+    render_editor_metrics(p_ctx->p_nk_ctx, p_ctx->p_win, dt);
 }
 
 int main(void) {
+    print_working_directory();
+
     /// ========== INITIALIZATION ========== ///
 
     FlEcsCtx ecs_ctx = fl_create_ecs_ctx(
@@ -604,25 +673,32 @@ int main(void) {
         .meta        = META_ID
     };
 
+    FlScene scene = {
+        .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
+        .ambient_color = {0.88f, 0.69f, 0.61f},
+        .light_pos = {5.0f, 1.0f, 2.0f},
+        .p_ecs_ctx = &ecs_ctx,
+        .selected_entity = 0,
+        .wireframe_mode = false,
+    };
+
     Resources resources = resources_create();
 
-    GLFWwindow *p_win = NULL;
+    FlEditorCtx editor_ctx = {
+        .widgets = editor_ctx_create_widgets(),
+        .mode = FL_EDITOR_VIEW
+    };
 
     struct nk_glfw nk_glfw = {0};
-    struct nk_context *nk_ctx;
 
     NFD_Init();
 
-    print_working_directory();
-
-    if(fl_glfw_init(&p_win) == false) {
+    if(fl_glfw_init(&editor_ctx.p_win) == false) {
         printf("Error: Failed to initialize GLFW! aborting...\n");
         return -1;
     }
 
-
-    nk_ctx = nk_glfw3_init(&nk_glfw, p_win, NK_GLFW3_INSTALL_CALLBACKS);
-
+    editor_ctx.p_nk_ctx = nk_glfw3_init(&nk_glfw, editor_ctx.p_win, NK_GLFW3_INSTALL_CALLBACKS);
     {
         struct nk_font_atlas *nk_atlas;
 
@@ -635,11 +711,11 @@ int main(void) {
             "vendor/default_fonts/Roboto-Regular.ttf", DPI_SCALED_FONT_SIZE, 0
         );
         nk_glfw3_font_stash_end(&nk_glfw);
-        nk_style_set_font(nk_ctx, &roboto_regular->handle);
+        nk_style_set_font(editor_ctx.p_nk_ctx, &roboto_regular->handle);
 
         resources_store(
             resources,
-            &(Resource){
+            &(Resource) {
                 .id = "fonts/roboto_regular",
                 .p_raw = roboto_regular,
                 .type = FL_RES_FONT
@@ -660,7 +736,7 @@ int main(void) {
             "fl_logo_iter1.png", &img.width, &img.height, &nchannels, 0
         );
 
-        glfwSetWindowIcon(p_win, 1, &img);
+        glfwSetWindowIcon(editor_ctx.p_win, 1, &img);
 
         stbi_image_free(img.pixels);
     }
@@ -680,12 +756,10 @@ int main(void) {
     printf("Grid Shaders loaded\n");
 
 
-    Shader *p_unlit_texture_shader = resources_load_shader_from_files(
+    if(resources_load_shader_from_files(
         resources, "shaders/unlit",
         "./shaders/unlit.vs", "./shaders/unlit.fs"
-    );
-
-    if(p_unlit_texture_shader == NULL) {
+    ) == NULL) {
         printf("Error: Failed to load unlit shaders!\n");
         glfwTerminate();
         return -1;
@@ -693,12 +767,10 @@ int main(void) {
 
     printf("Unlit Shaders loaded\n");
 
-    Shader *p_phong_shader = resources_load_shader_from_files(
+    if(resources_load_shader_from_files(
         resources, "shaders/phong",
         "./shaders/phong.vs", "./shaders/phong.fs"
-    );
-
-    if(p_phong_shader == NULL) {
+    ) == NULL) {
         printf("Error: Failed to load phong shaders!\n");
         glfwTerminate();
         return -1;
@@ -706,12 +778,10 @@ int main(void) {
 
     printf("Phong shader loaded\n");
 
-    Shader *p_skybox_shader = resources_load_shader_from_files(
+    if(resources_load_shader_from_files(
         resources, "shaders/skybox",
         "./shaders/skybox.vs", "./shaders/skybox.fs"
-    );
-
-    if(p_skybox_shader == NULL) {
+    ) == NULL) {
         printf("Error: Failed to load skybox shaders!\n");
         glfwTerminate();
         return -1;
@@ -754,7 +824,11 @@ int main(void) {
 
     resources_store(
         resources,
-        &(Resource){.id = "primitives/plane", .p_raw = get_prim_plane_vertices(), .type = FL_RES_VERTICES}
+        &(Resource){
+            .id = "primitives/plane",
+            .p_raw = get_prim_plane_vertices(),
+            .type = FL_RES_VERTICES
+        }
     );
 
     // create buffers
@@ -767,116 +841,33 @@ int main(void) {
         .norm_buf      = vert_pipeline.normal_buf
     };
 
-    glfwSetCursorPosCallback(p_win, glfw_cursor_callback);
-
-    FlScene scene = {
-        .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
-        .ambient_color = {0.88f, 0.69f, 0.61f},
-        .light_pos = {5.0f, 1.0f, 2.0f},
-        .p_ecs_ctx = &ecs_ctx,
-        .selected_entity = 0,
-        .wireframe_mode = false,
-    };
     
-    FlEditorCtx editor_ctx = create_editor_ctx();
-
     FlEditorWidgetIds widget_ids = {0};
 
-    widget_ids.scene_hierarchy = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "scene hierarchy",
-            .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/cube")
-        }
-    );
+    register_widgets(&editor_ctx, &widget_ids, resources);
 
-    widget_ids.cam_properties = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "camera properties",
-            .type = FL_WIDGET_SETTINGS,
-            .p_icon_tex = resources_find(resources, "textures/camera")
-        }
-    );
-    widget_ids.res_manager = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "resource manager",
-            .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/magnify")
-        }
-    );
-    widget_ids.scene_settings = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "scene settings",
-            .type = FL_WIDGET_SETTINGS,
-            .p_icon_tex = resources_find(resources, "textures/cog")
-        }
-    );
-    widget_ids.file_browser = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "file browser",
-            .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/folder")
-        }
-    );
-    widget_ids.entity_inspector = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "entity inspector",
-            .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/eye")
-        }
-    );
-    widget_ids.console = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "console",
-            .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/question")
-        }
-    );
-    
-
-    widget_ids.tutorial = editor_ctx_register_widget(
-        editor_ctx,
-        &(FlWidgetCtx){
-            .id = "tutorial",
-            .type = FL_WIDGET_NO_CATEGORY,
-            .p_icon_tex = resources_find(resources, "textures/star"),
-            .is_open = true
-        }
-    );
-
+    /// ========== EDITOR LOOP ========== ///
     float dt = glfwGetTime();
     float prev_time = glfwGetTime();
 
-    while(!glfwWindowShouldClose(p_win)) {
+    while(!glfwWindowShouldClose(editor_ctx.p_win)) {
         float current_time = glfwGetTime();
         dt = current_time - prev_time;
         prev_time = current_time;
 
-        process_input(p_win, dt);
+        process_input(editor_ctx.p_win, dt);
 
         nk_glfw3_new_frame(&nk_glfw);
 
-        render_main_menubar(nk_ctx, p_win, resources, &editor_ctx);
+        handle_grab(&editor_ctx, &ecs_ctx, &scene, &comps);
 
-        handle_grab(p_win, &editor_ctx, &ecs_ctx, &scene, &comps);
-
-// void handle_widgets(FlEditorCtx *p_ctx, struct nk_context *p_nk_ctx,
-//                     Scene *p_scene, GLFWwindow *p_win, Resources resources,
-//                     FlEditorComponents *p_comps, FlEditorWidgetIds *p_ids)
-        handle_widgets(
-            &editor_ctx, nk_ctx, &scene, p_win,
+        render_widgets(
+            &editor_ctx, &scene,
             resources, &comps, &widget_ids, dt
         );
 
         // RENDERING
-        render_scene_frame(p_win, pipe, &scene, resources, comps);
+        render_scene_frame(editor_ctx.p_win, pipe, &scene, resources, comps);
 
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;
@@ -886,15 +877,14 @@ int main(void) {
             NK_ANTI_ALIASING_ON, NK_MAX_VERTEX_BUFFER, NK_MAX_ELEMENT_BUFFER
         );
 
-        glfwSwapBuffers(p_win);
+        glfwSwapBuffers(editor_ctx.p_win);
         glfwPollEvents();
     }
 
     /// ========== CLEAN UP ========== ///
-    editor_ctx_free(editor_ctx);
+    editor_ctx_free_widgets(editor_ctx.widgets);
     fl_ecs_ctx_free(&ecs_ctx);
 
-    scene_free(&scene);
     resources_free(resources);
 
     nk_glfw3_shutdown(&nk_glfw);

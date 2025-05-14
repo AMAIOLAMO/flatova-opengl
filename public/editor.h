@@ -27,6 +27,16 @@ typedef struct FlWidgetCtx_t {
     b8 is_open;
 } FlWidgetCtx;
 
+typedef struct FlEditorComponents_t {
+    FlComponent transform, mesh_render, dir_light, meta;
+} FlEditorComponents;
+
+typedef struct FlEditorWidgetIds_t {
+    literal_str scene_hierarchy, cam_properties, res_manager,
+    scene_settings, file_browser, entity_inspector,
+    console, tutorial;
+} FlEditorWidgetIds;
+
 typedef enum FlEditorMode_t {
     FL_EDITOR_VIEW, FL_EDITOR_GRAB
 } FlEditorMode;
@@ -34,15 +44,18 @@ typedef enum FlEditorMode_t {
 typedef struct FlEditorCtx_t {
     struct hashmap *widgets;
     FlEditorMode mode;
+    GLFWwindow *p_win;
+    struct nk_context *p_nk_ctx;
 } FlEditorCtx;
 
 // TODO: instead of create editor ctx, we just allow the user create it
 // themselves, since we might add more and more into the ctx
-FlEditorCtx create_editor_ctx(void);
+// FlEditorCtx create_editor_ctx(void);
+struct hashmap* editor_ctx_create_widgets(void);
 
 // TODO: replace all ctx to use pointers instead of just a struct copy
 // for API consistency
-const char* editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx);
+const char* editor_ctx_register_widget(FlEditorCtx *p_ctx, FlWidgetCtx *p_widget_ctx);
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx);
 
@@ -52,11 +65,7 @@ const FlWidgetCtx* editor_ctx_get_widget(const FlEditorCtx *ctx, const char *ide
 
 b8 editor_ctx_is_widget_open(const FlEditorCtx *p_ctx, const char *identifier);
 
-void editor_ctx_free(FlEditorCtx ctx);
-
-typedef struct FlEditorComponents_t {
-    FlComponent transform, mesh_render, dir_light, meta;
-} FlEditorComponents;
+void editor_ctx_free_widgets(struct hashmap *widgets);
 
 typedef struct FlScaling_t {
     vec2 dpi_scale;
