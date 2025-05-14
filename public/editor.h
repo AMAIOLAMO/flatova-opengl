@@ -36,8 +36,12 @@ typedef struct FlEditorCtx_t {
     FlEditorMode mode;
 } FlEditorCtx;
 
+// TODO: instead of create editor ctx, we just allow the user create it
+// themselves, since we might add more and more into the ctx
 FlEditorCtx create_editor_ctx(void);
 
+// TODO: replace all ctx to use pointers instead of just a struct copy
+// for API consistency
 const char* editor_ctx_register_widget(FlEditorCtx ctx, FlWidgetCtx *p_widget_ctx);
 
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx);
@@ -46,7 +50,7 @@ b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_ope
 
 const FlWidgetCtx* editor_ctx_get_widget(const FlEditorCtx *ctx, const char *identifier);
 
-b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier);
+b8 editor_ctx_is_widget_open(const FlEditorCtx *p_ctx, const char *identifier);
 
 void editor_ctx_free(FlEditorCtx ctx);
 
@@ -70,7 +74,7 @@ void fl_xyz_widget(struct nk_context *p_ctx, const char *name, vec3 p_pos, float
 void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color);
 
 // hierarchy
-void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps, Resources resources);
+void render_scene_hierarchy(struct nk_context *p_ctx, FlScene *p_scene, FlEditorComponents *p_comps, Resources resources);
 
 void render_camera_properties(struct nk_context *p_ctx, GLFWwindow *p_win, Camera *p_cam, CameraSettings *p_cam_settings);
 
@@ -78,7 +82,7 @@ void render_editor_metrics(struct nk_context *p_ctx, GLFWwindow *p_win, float dt
 
 void render_resource_manager(struct nk_context *p_ctx, Resources resources);
 
-void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene);
+void render_scene_settings(struct nk_context *p_ctx, FlScene *p_scene);
 
 void render_tutorial(struct nk_context *p_ctx, vec2 win_size, Resources resources);
 
@@ -87,7 +91,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
 void render_file_browser(struct nk_context *p_ctx);
 
-void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources, FlEditorComponents *p_comps);
+void render_entity_inspector(struct nk_context *p_ctx, FlScene *p_scene, Resources resources, FlEditorComponents *p_comps);
 
 
 #endif // _EDITOR_H

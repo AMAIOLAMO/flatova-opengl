@@ -36,7 +36,7 @@ typedef struct FlGlobalLight_t {
 void transform_apply(FlTransform transform, mat4 applied_mat);
 
 
-typedef struct Scene_t {
+typedef struct FlScene_t {
     // TODO: maybe put some of these in Environmental settings?
     /*EnvironmentSettings env_settings;*/
     vec3 light_pos;
@@ -49,9 +49,9 @@ typedef struct Scene_t {
     FlEntityId selected_entity;
 
     FlEcsCtx *p_ecs_ctx;
-} Scene;
+} FlScene;
 
-void scene_free(Scene *p_scene);
+void scene_free(FlScene *p_scene);
 
 
 #endif // _COMMON_H

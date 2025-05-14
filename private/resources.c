@@ -1,3 +1,4 @@
+#include "hashmap.h"
 #include <resources.h>
 
 #include <assert.h>
@@ -17,11 +18,13 @@ static uint64_t resource_hash(const void *item, uint64_t seed0, uint64_t seed1) 
     return hashmap_sip(res->id, strlen(res->id), seed0, seed1);
 }
 
-
-
 Resources resources_create(void) {
     return hashmap_new(sizeof(Resource), 0, 0, 0,
                        resource_hash, resource_cmp, NULL, NULL);
+}
+
+size_t resources_size(Resources resources) {
+    return hashmap_count(resources);
 }
 
 b8 resources_iter(Resources resources, size_t *p_iter, Resource **pp_resource) {

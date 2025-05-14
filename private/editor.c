@@ -65,8 +65,11 @@ b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_ope
     return true;
 }
 
-b8 editor_ctx_is_widget_open(FlEditorCtx ctx, const char *identifier) {
-    const FlWidgetCtx *scene_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .id = identifier });
+b8 editor_ctx_is_widget_open(const FlEditorCtx *p_ctx, const char *identifier) {
+    const FlWidgetCtx *scene_widget = hashmap_get(
+        p_ctx->widgets,
+        &(FlWidgetCtx){ .id = identifier }
+    );
 
     assert(scene_widget && "ERROR: scene widget is null, cannot check if the widget is open");
     
@@ -199,7 +202,7 @@ void fl_combo_color_picker(struct nk_context *p_ctx, struct nk_colorf *p_color) 
 #define NK_AUTO_LAYOUT 0
 
 // hierarchy
-void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorComponents *p_comps, Resources resources) {
+void render_scene_hierarchy(struct nk_context *p_ctx, FlScene *p_scene, FlEditorComponents *p_comps, Resources resources) {
     if (nk_begin(p_ctx, "Scene Hierarchy", nk_rect(DPI_SCALEX(20), DPI_SCALEY(50),
                                                     DPI_SCALEX(340), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         const Model *p_model = resources_find(resources, "primitives/cube");
@@ -216,7 +219,6 @@ void render_scene_hierarchy(struct nk_context *p_ctx, Scene *p_scene, FlEditorCo
         const FlComponent meta_id = p_comps->meta;
 
         GLuint *p_add_icon = resources_find(resources, "textures/plus");
-
 
         nk_layout_row_push(p_ctx, DPI_SCALEX(25));
         if(nk_menu_begin_image(p_ctx, "Add", nk_image_id(*p_add_icon), nk_vec2(DPI_SCALEX(110),DPI_SCALEY(120)))) {
@@ -439,6 +441,54 @@ void render_resource_manager(struct nk_context *p_ctx, Resources resources) {
                 printf("Error: %s\n", NFD_GetError());
             }
         }
+
+        GLuint *p_tex_icon = resources_find(resources, "textures/texture");
+        assert(p_tex_icon && "ERROR: texture image cannot be null -> p_tex_icon is NULL");
+
+        if(nk_button_image_label(p_ctx, nk_image_id(*p_tex_icon), "load texture", NK_TEXT_RIGHT)) {
+            nfdu8char_t *tex_path;
+            nfdu8filteritem_t filters[] = { { "PNG", "png" }, {"JPG", "jpg,jpeg"} };
+
+            nfdopendialogu8args_t args = {0};
+            args.filterList = filters;
+            args.filterCount = arr_size(filters);
+
+            nfdresult_t result = NFD_OpenDialogU8_With(&tex_path, &args);
+
+            if (result == NFD_OKAY) {
+                puts("Info: Found texture at path\n");
+                puts(tex_path);
+
+                tinydir_file file;
+
+                ResIdStrings *p_id_strings = resources_lazy_get_id_strings(resources);
+
+                if(tinydir_file_open(&file, tex_path) == 0) {
+                    printf("Loading texture: %s\n", file.name);
+
+                    char *dup_tex_path = strdup(tex_path);
+                    GLuint *p_tex = resources_load_tex2d_nearest_from_file(
+                        resources, dup_tex_path, tex_path, GL_RGBA
+                    );
+
+                    if(p_tex == NULL)
+                        printf("ERROR: Failed to load texture\n");
+                    else {
+                        list_append(p_id_strings, dup_tex_path);
+
+                        printf("Texture loaded: %s\n", file.name);
+                    }
+                }
+
+                NFD_FreePathU8(tex_path);
+            }
+            else if (result == NFD_CANCEL) {
+                puts("Info: pressed cancel.");
+            }
+            else {
+                printf("Error: %s\n", NFD_GetError());
+            }
+        }
         
         size_t texs_idx = 0;
         Resource *res_texs[64] = {0};
@@ -470,11 +520,11 @@ void render_resource_manager(struct nk_context *p_ctx, Resources resources) {
             }
         }
 
+        nk_labelf(p_ctx, NK_TEXT_LEFT, "Loaded total of %zu resources", resources_size(resources));
 
         // rendering
         if (nk_tree_push(p_ctx, NK_TREE_NODE, "Textures", NK_MINIMIZED)) {
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 2);
-
 
             for(size_t i = 0; i < texs_idx - 1; i++) {
                 Resource *p_res = res_texs[i];
@@ -513,7 +563,7 @@ void render_resource_manager(struct nk_context *p_ctx, Resources resources) {
     nk_end(p_ctx);
 }
 
-void render_scene_settings(struct nk_context *p_ctx, Scene *p_scene) {
+void render_scene_settings(struct nk_context *p_ctx, FlScene *p_scene) {
     if (nk_begin(p_ctx, "Scene Settings", nk_rect(DPI_SCALEX(20), DPI_SCALEY(600),
                                                     DPI_SCALEX(400), DPI_SCALEY(250)), DEFAULT_NK_WIN_FLAGS)) {
         nk_layout_row_dynamic(p_ctx, DPI_SCALEY(25), 2);
@@ -543,7 +593,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
         struct nk_image widgets_icon = nk_image_id(*p_icon_tex);
 
-        const size_t MENU_WIDGET_COUNT = 4;
+        const size_t MENU_WIDGET_COUNT = 5;
 
         size_t common_size = 0;
         FlWidgetCtx *common_widgets[32] = {0};
@@ -576,10 +626,23 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
         nk_menubar_begin(p_ctx);
 
         nk_layout_row_begin(p_ctx, NK_STATIC, DPI_SCALEY(25), MENU_WIDGET_COUNT);
-        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
 
         const float MENU_LABEL_WIDTH = 160;
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
+        if (nk_menu_begin_image_label(
+            p_ctx, "action", NK_TEXT_RIGHT, widgets_icon,
+            nk_vec2(DPI_SCALEX(MENU_LABEL_WIDTH), DPI_SCALEY(200))
+        )) {
+            nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
+            nk_label(p_ctx, "Load Scene", NK_TEXT_LEFT);
+            nk_label(p_ctx, "Save Scene", NK_TEXT_LEFT);
+            nk_label(p_ctx, "Save Scene As...", NK_TEXT_LEFT);
 
+            nk_menu_end(p_ctx);
+        }
+
+
+        nk_layout_row_push(p_ctx, DPI_SCALEY(95));
         // TODO: rewrite this to make this less longer, it is repeating too much
         if (nk_menu_begin_image_label(
             p_ctx, "common", NK_TEXT_RIGHT, widgets_icon,
@@ -725,7 +788,7 @@ void* resources_filtered_combo_selection(
     return resources_find(res, list[selected]);
 }
 
-void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources resources,
+void render_entity_inspector(struct nk_context *p_ctx, FlScene *p_scene, Resources resources,
                              FlEditorComponents *p_comps) {
     if (nk_begin(p_ctx, "Entity Inspector",
                  nk_rect(DPI_SCALEX(20), DPI_SCALEY(500), DPI_SCALEX(300), DPI_SCALEY(400)),
@@ -845,6 +908,22 @@ void render_entity_inspector(struct nk_context *p_ctx, Scene *p_scene, Resources
     nk_end(p_ctx);
 }
 
+// finds the location in the dimentions given the anchor (0.0 ~ 1.0)
+void fl_anchor(vec2 dimentions, vec2 anchor, vec2 output_location) {
+    assert(anchor[0] >= 0.0f && anchor[0] <= 1.0f && "ERROR: anchor[0] must be within 0.0f ~ 1.0f");
+    assert(anchor[1] >= 0.0f && anchor[1] <= 1.0f && "ERROR: anchor[1] must be within 0.0f ~ 1.0f");
+    assert(output_location && "ERROR: output location cannot be NULL");
+
+    output_location[0] = dimentions[0] * anchor[0];
+    output_location[1] = dimentions[1] * anchor[1];
+}
+
+// finds the location in the dimentions given the anchor (0.0 ~ 1.0), and gives it an absolute offset
+void fl_anchor_offset(vec2 dimentions, vec2 anchor, vec2 offset, vec2 output_location) {
+    fl_anchor(dimentions, anchor, output_location);
+    glm_vec2_add(output_location, offset, output_location);
+}
+
 void render_tutorial(struct nk_context *p_ctx, vec2 win_size, Resources resources) {
     (void) resources;
     struct nk_rect rect = nk_rect(0, 0, DPI_SCALEX(700), DPI_SCALEY(500));
@@ -854,6 +933,7 @@ void render_tutorial(struct nk_context *p_ctx, vec2 win_size, Resources resource
     if (nk_begin(p_ctx, "Tutorial", rect, DEFAULT_NK_WIN_FLAGS)) {
         nk_layout_row_dynamic(p_ctx, NK_AUTO_LAYOUT, 1);
         nk_label_wrap(p_ctx, "This tutorial serves as a basic guide on how to navigate, use and create stuff in Flatova!");
+        nk_label_wrap(p_ctx, "You can enable and disable this tutorial on the top menubar anytime you like!");
 
         if(nk_tree_push(p_ctx, NK_TREE_NODE, "Interface", NK_MINIMIZED)) {
             nk_layout_row_dynamic(p_ctx, DPI_SCALEY(20), 1);

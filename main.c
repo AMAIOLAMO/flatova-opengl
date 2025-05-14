@@ -20,6 +20,8 @@
 
 #include <stb_image.h>
 
+#include <cxlist.h>
+
 #include <nfd.h>
 #include <tinydir.h>
 
@@ -98,7 +100,9 @@ void glfw_cursor_callback(GLFWwindow *p_win, double x, double y) {
         cam.h_rot += offset_x  * cam_settings.sensitivity;
         cam.v_rot += -offset_y * cam_settings.sensitivity;
 
-        cam.v_rot = clampf(cam.v_rot, -cam_settings.max_vrot, cam_settings.max_vrot);
+        cam.v_rot = clampf(
+            cam.v_rot, -cam_settings.max_vrot, cam_settings.max_vrot
+        );
 
         return;
     }
@@ -114,7 +118,8 @@ void process_input(GLFWwindow *p_win, float dt) {
     if(glfwGetKey(p_win, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(p_win, true);
 
-    float cam_move_speed = cam_settings.default_fly_speed * cam_settings.speed_multiplier;
+    float cam_move_speed = cam_settings.default_fly_speed
+                           * cam_settings.speed_multiplier;
 
     if(glfwGetKey(p_win, GLFW_KEY_LEFT_SHIFT) == GLFW_PRESS)
         cam_move_speed *= 2;
@@ -122,7 +127,8 @@ void process_input(GLFWwindow *p_win, float dt) {
     vec3 forward;
     camera_forward(cam, forward);
     glm_vec3_scale(
-        forward, glfw_key_strength(p_win, GLFW_KEY_W, GLFW_KEY_S) * cam_move_speed * dt,
+        forward, glfw_key_strength(p_win, GLFW_KEY_W, GLFW_KEY_S)
+            * cam_move_speed * dt,
         forward
     );
 
@@ -131,16 +137,19 @@ void process_input(GLFWwindow *p_win, float dt) {
     vec3 right;
     camera_right(cam, right);
     glm_vec3_scale(
-        right, glfw_key_strength(p_win, GLFW_KEY_D, GLFW_KEY_A) * cam_move_speed * dt,
+        right, glfw_key_strength(p_win, GLFW_KEY_D, GLFW_KEY_A)
+            * cam_move_speed * dt,
         right 
     );
 
     glm_vec3_add(cam.pos, right, cam.pos);
 
-    cam.pos[1] += glfw_key_strength(p_win, GLFW_KEY_E, GLFW_KEY_Q) * cam_move_speed * dt;
+    cam.pos[1] += glfw_key_strength(p_win, GLFW_KEY_E, GLFW_KEY_Q)
+                  * cam_move_speed * dt;
 }
 
-void render_grid(Resources resources, const DefaultPipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
+void render_grid(Resources resources, const DefaultPipeline pipeline,
+                 Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_grid = (Shader*)resources_find(resources, "shaders/grid");
 
     shader_use(*p_grid); {
@@ -153,7 +162,10 @@ void render_grid(Resources resources, const DefaultPipeline pipeline, Camera *p_
 
         mat4 local_to_world_mat;
         glm_mat4_identity(local_to_world_mat);
-        glm_translate(local_to_world_mat, (vec3){p_cam->pos[0], 0.0f, p_cam->pos[2]});
+        glm_translate(
+            local_to_world_mat,
+            (vec3){ p_cam->pos[0], 0.0f, p_cam->pos[2] }
+        );
 
         shader_set_uniform_mat4fv(*p_grid, "model", local_to_world_mat);
 
@@ -162,7 +174,8 @@ void render_grid(Resources resources, const DefaultPipeline pipeline, Camera *p_
 }
 
 
-void render_skybox(Resources resources, const DefaultPipeline pipeline, Camera *p_cam, mat4 view_proj_mat) {
+void render_skybox(Resources resources, const DefaultPipeline pipeline,
+                   Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_sky_shader = resources_find(resources, "shaders/skybox"   );
     Model  *p_sky_model  = resources_find(resources, "primitives/skybox");
     GLuint *p_sky_tex    = resources_find(resources, "textures/skymap_1");
@@ -182,10 +195,14 @@ void render_skybox(Resources resources, const DefaultPipeline pipeline, Camera *
 
         mat4 local_to_world_mat;
         glm_mat4_identity(local_to_world_mat);
-        // TODO: we should not do this, the perspective calculation should be handled separately
+        // TODO: we should not do this,
+        // the perspective calculation should be handled separately
         // where near plane should not affect the skybox
         glm_translate(local_to_world_mat, p_cam->pos);
-        glm_scale(local_to_world_mat, (vec3){p_cam->far, p_cam->far, p_cam->far});
+        glm_scale(
+            local_to_world_mat,
+            (vec3){p_cam->far, p_cam->far, p_cam->far}
+        );
 
         shader_set_uniform_mat4fv(*p_sky_shader, "model", local_to_world_mat);
 
@@ -193,8 +210,9 @@ void render_skybox(Resources resources, const DefaultPipeline pipeline, Camera *
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene *p_scene,
-                        Resources resources, FlEditorComponents comps) {
+void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline,
+                        FlScene *p_scene, Resources resources,
+                        FlEditorComponents comps) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     int width, height;
@@ -232,7 +250,9 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
     vec3 global_light_color = {0.0, 0.0, 0.0};
 
     while(fl_ecs_query(p_ecs_ctx, &iter, &entity, &dir_light_comp, 1)) {
-        FlGlobalLight *p_g_light = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, dir_light_comp);
+        FlGlobalLight *p_g_light = fl_ecs_get_entity_component_data(
+            p_ecs_ctx, entity, dir_light_comp
+        );
 
         glm_vec3_copy(p_g_light->dir, global_light_dir);
         glm_vec3_normalize(global_light_dir);
@@ -246,9 +266,16 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         transform_comp, mesh_render_comp
     };
 
-    while(fl_ecs_query(p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))) {
-        FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, mesh_render_comp);
-        FlTransform *p_transform    = fl_ecs_get_entity_component_data(p_ecs_ctx, entity, transform_comp);
+    while(fl_ecs_query(
+        p_ecs_ctx, &iter, &entity, query_components, arr_size(query_components))
+    ) {
+        FlMeshRender *p_mesh_render = fl_ecs_get_entity_component_data(
+            p_ecs_ctx, entity, mesh_render_comp
+        );
+        FlTransform *p_transform    = fl_ecs_get_entity_component_data(
+            p_ecs_ctx, entity, transform_comp
+        );
+
         assert(p_mesh_render);
         assert(p_transform);
 
@@ -283,8 +310,13 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         euler_radians_transform_xyz(p_transform->rot, normal_mat);
 
         shader_use(*p_shader); {
-            shader_set_uniform_3f(*p_shader, "global_light.dir",   global_light_dir);
-            shader_set_uniform_3f(*p_shader, "global_light.color", global_light_color);
+            shader_set_uniform_3f(
+                *p_shader, "global_light.dir",   global_light_dir
+            );
+
+            shader_set_uniform_3f(
+                *p_shader, "global_light.color", global_light_color
+            );
 
             glActiveTexture(GL_TEXTURE0);
             glBindTexture(GL_TEXTURE_2D, *p_diffuse_texture);
@@ -296,9 +328,14 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
 
             shader_set_uniform_1i(*p_shader, "material.specular", 1);
 
-            shader_set_uniform_1f(*p_shader, "material.specular_factor", p_mesh_render->specular_factor);
+            shader_set_uniform_1f(
+                *p_shader,
+                "material.specular_factor", p_mesh_render->specular_factor
+            );
 
-            shader_set_uniform_3f(*p_shader, "material.ambient", p_scene->ambient_color);
+            shader_set_uniform_3f(
+                *p_shader, "material.ambient", p_scene->ambient_color
+            );
 
             shader_set_uniform_3f(*p_shader, "cam_pos", cam.pos);
             shader_set_uniform_mat4fv(*p_shader, "view_proj", view_proj_mat);
@@ -326,20 +363,34 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
         if(entity == p_scene->selected_entity) {
             glStencilFunc(GL_NOTEQUAL, 1, 0xFF);
             glStencilMask(0x00); // disable writing
-            // glDisable(GL_DEPTH_TEST);
 
-            Shader *p_single_color = resources_find(resources, "shaders/single_color");
+            Shader *p_single_color = resources_find(
+                resources, "shaders/single_color"
+            );
+
             shader_use(*p_single_color); {
                 mat4 outline_scale = GLM_MAT4_IDENTITY_INIT;
                 const float SCALE_SIZE = 1.05f;
-                glm_scale(outline_scale, (vec3){ SCALE_SIZE, SCALE_SIZE, SCALE_SIZE });
+                glm_scale(
+                    outline_scale,
+                    (vec3){ SCALE_SIZE, SCALE_SIZE, SCALE_SIZE }
+                );
 
                 mat4 scaled_local_to_world_mat;
-                glm_mat4_mul(local_to_world_mat, outline_scale, scaled_local_to_world_mat);
-                shader_set_uniform_mat4fv(*p_single_color, "model", scaled_local_to_world_mat);
+                glm_mat4_mul(
+                    local_to_world_mat, outline_scale, scaled_local_to_world_mat
+                );
+                shader_set_uniform_mat4fv(
+                    *p_single_color, "model", scaled_local_to_world_mat
+                );
 
-                shader_set_uniform_mat4fv(*p_single_color, "view_proj", view_proj_mat);
-                shader_set_uniform_3f(*p_single_color, "color", (vec3){0.0f, 1.0f, 0.0f});
+                shader_set_uniform_mat4fv(
+                    *p_single_color, "view_proj", view_proj_mat
+                );
+
+                shader_set_uniform_3f(
+                    *p_single_color, "color", (vec3){0.0f, 1.0f, 0.0f}
+                );
             }
 
             glBindVertexArray(pipeline.vert_arr);
@@ -347,7 +398,6 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline, Scene
 
             glStencilMask(0xFF);
             glStencilFunc(GL_ALWAYS, 1, 0xFF);
-            // glEnable(GL_DEPTH_TEST);
         }
 
         if(p_scene->wireframe_mode)
@@ -411,15 +461,18 @@ typedef struct FlId2Idx_t {
     size_t idx;
 } FlId2Idx;
 
-void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs, Scene *p_scene, FlEditorComponents *p_comps) {
+void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
+                 FlScene *p_scene, FlEditorComponents *p_comps) {
     static vec3 original_location;
     static double orig_grab_x, orig_grab_y;
 
     if(glfwGetKey(p_win, GLFW_KEY_G) == GLFW_PRESS && p_editor->mode != FL_EDITOR_GRAB) {
 
         if(fl_ecs_entity_valid(p_ecs, p_scene->selected_entity) &&
-            fl_ecs_entity_has_component(p_ecs, p_scene->selected_entity, p_comps->transform)) {
-            FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs, p_scene->selected_entity, p_comps->transform);
+           fl_ecs_entity_has_component(p_ecs, p_scene->selected_entity, p_comps->transform)) {
+            FlTransform *p_transform = fl_ecs_get_entity_component_data(
+                p_ecs, p_scene->selected_entity, p_comps->transform
+            );
 
             glfwGetCursorPos(p_win, &orig_grab_x, &orig_grab_y);
 
@@ -457,7 +510,9 @@ void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs, Scen
 
         if(fl_ecs_entity_valid(p_ecs, p_scene->selected_entity) &&
             fl_ecs_entity_has_component(p_ecs, p_scene->selected_entity, p_comps->transform)) {
-            FlTransform *p_transform = fl_ecs_get_entity_component_data(p_ecs, p_scene->selected_entity, p_comps->transform);
+            FlTransform *p_transform = fl_ecs_get_entity_component_data(
+                p_ecs, p_scene->selected_entity, p_comps->transform
+            );
 
             glm_vec3_copy(original_location, p_transform->pos);
             glm_vec3_add(offset, p_transform->pos, p_transform->pos);
@@ -472,11 +527,59 @@ void handle_grab(GLFWwindow *p_win, FlEditorCtx *p_editor, FlEcsCtx *p_ecs, Scen
     }
 }
 
-int main(void) {
-    const size_t TBL_ENTITY_COUNT    = 100;
-    const size_t TBL_COMPONENT_COUNT = 32;
+// ECS
+const size_t TBL_ENTITY_COUNT    = 100;
+const size_t TBL_COMPONENT_COUNT = 32;
 
-    FlEcsCtx ecs_ctx = fl_create_ecs_ctx(TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT);
+void print_working_directory(void) {
+    char cwd_path[512];
+    getcwd(cwd_path, arr_size(cwd_path));
+    printf("running on working directory: %s\n", cwd_path);
+}
+
+typedef struct FlEditorWidgetIds_t {
+    literal_str scene_hierarchy, cam_properties, res_manager,
+    scene_settings, file_browser, entity_inspector,
+    console, tutorial;
+} FlEditorWidgetIds;
+
+void handle_widgets(FlEditorCtx *p_ctx, struct nk_context *p_nk_ctx,
+                    FlScene *p_scene, GLFWwindow *p_win,
+                    Resources resources, FlEditorComponents *p_comps,
+                    FlEditorWidgetIds *p_ids, float dt) {
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->scene_hierarchy))
+        render_scene_hierarchy(p_nk_ctx, p_scene, p_comps, resources);
+
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->cam_properties))
+        render_camera_properties(p_nk_ctx, p_win, &cam, &cam_settings);
+
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->res_manager))
+        render_resource_manager(p_nk_ctx, resources);
+
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->scene_settings))
+        render_scene_settings(p_nk_ctx, p_scene);
+
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->file_browser))
+        render_file_browser(p_nk_ctx);
+
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->entity_inspector))
+        render_entity_inspector(p_nk_ctx, p_scene, resources, p_comps);
+
+    int w, h;
+    glfwGetWindowSize(p_win, &w, &h);
+
+    if(editor_ctx_is_widget_open(p_ctx, p_ids->tutorial))
+        render_tutorial(p_nk_ctx, (vec2){w, h}, resources);
+
+    render_editor_metrics(p_nk_ctx, p_win, dt);
+}
+
+int main(void) {
+    /// ========== INITIALIZATION ========== ///
+
+    FlEcsCtx ecs_ctx = fl_create_ecs_ctx(
+        TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT
+    );
 
     const FlComponent TRANSFORM_ID = fl_ecs_add_component(
         &ecs_ctx, sizeof(FlTransform)
@@ -501,24 +604,22 @@ int main(void) {
         .meta        = META_ID
     };
 
-    NFD_Init();
-
     Resources resources = resources_create();
 
-    char cwd_path[512];
-    getcwd(cwd_path, arr_size(cwd_path));
-    printf("running on working directory: %s\n", cwd_path);
-
     GLFWwindow *p_win = NULL;
+
+    struct nk_glfw nk_glfw = {0};
+    struct nk_context *nk_ctx;
+
+    NFD_Init();
+
+    print_working_directory();
 
     if(fl_glfw_init(&p_win) == false) {
         printf("Error: Failed to initialize GLFW! aborting...\n");
         return -1;
     }
 
-    // NUKLEAR SETUP
-    struct nk_glfw nk_glfw = {0};
-    struct nk_context *nk_ctx;
 
     nk_ctx = nk_glfw3_init(&nk_glfw, p_win, NK_GLFW3_INSTALL_CALLBACKS);
 
@@ -538,7 +639,11 @@ int main(void) {
 
         resources_store(
             resources,
-            &(Resource){ .id = "fonts/roboto_regular", .p_raw = roboto_regular, .type = FL_RES_FONT }
+            &(Resource){
+                .id = "fonts/roboto_regular",
+                .p_raw = roboto_regular,
+                .type = FL_RES_FONT
+            }
         );
     }
     
@@ -546,14 +651,19 @@ int main(void) {
     const size_t DIR_DEPTH = 5;
     resources_load_dir_recursive(resources, DIR_DEPTH, "./vendor");
 
-    GLFWimage img = {0};
-    
-    int nchannels;
-    img.pixels = stbi_load("fl_logo_iter1.png", &img.width, &img.height, &nchannels, 0);
+    // SETUP WINDOW ICON
+    {
+        GLFWimage img = {0};
 
-    glfwSetWindowIcon(p_win, 1, &img);
+        int nchannels;
+        img.pixels = stbi_load(
+            "fl_logo_iter1.png", &img.width, &img.height, &nchannels, 0
+        );
 
-    stbi_image_free(img.pixels);
+        glfwSetWindowIcon(p_win, 1, &img);
+
+        stbi_image_free(img.pixels);
+    }
 
 
     // TODO: LOAD all shaders in vendor using recursive loading instead,
@@ -659,10 +769,7 @@ int main(void) {
 
     glfwSetCursorPosCallback(p_win, glfw_cursor_callback);
 
-    float dt = glfwGetTime();
-    float prev_time = glfwGetTime();
-
-    Scene scene = {
+    FlScene scene = {
         .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
         .ambient_color = {0.88f, 0.69f, 0.61f},
         .light_pos = {5.0f, 1.0f, 2.0f},
@@ -673,41 +780,79 @@ int main(void) {
     
     FlEditorCtx editor_ctx = create_editor_ctx();
 
-    // TODO: replace all the ids below to use variables instead of constants, this will reduce duplication
-    const char *scene_hierarchy_id = editor_ctx_register_widget(
+    FlEditorWidgetIds widget_ids = {0};
+
+    widget_ids.scene_hierarchy = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "scene hierarchy", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/cube")}
+        &(FlWidgetCtx){
+            .id = "scene hierarchy",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/cube")
+        }
     );
 
-    editor_ctx_register_widget(
+    widget_ids.cam_properties = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "camera properties", .type = FL_WIDGET_SETTINGS, .p_icon_tex = resources_find(resources, "textures/camera")}
+        &(FlWidgetCtx){
+            .id = "camera properties",
+            .type = FL_WIDGET_SETTINGS,
+            .p_icon_tex = resources_find(resources, "textures/camera")
+        }
     );
-    editor_ctx_register_widget(
+    widget_ids.res_manager = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "resource manager", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/magnify")}
+        &(FlWidgetCtx){
+            .id = "resource manager",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/magnify")
+        }
     );
-    editor_ctx_register_widget(
+    widget_ids.scene_settings = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "scene settings", .type = FL_WIDGET_SETTINGS, .p_icon_tex = resources_find(resources, "textures/cog")}
+        &(FlWidgetCtx){
+            .id = "scene settings",
+            .type = FL_WIDGET_SETTINGS,
+            .p_icon_tex = resources_find(resources, "textures/cog")
+        }
     );
-    editor_ctx_register_widget(
+    widget_ids.file_browser = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "file browser", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/folder")}
+        &(FlWidgetCtx){
+            .id = "file browser",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/folder")
+        }
     );
-    editor_ctx_register_widget(
+    widget_ids.entity_inspector = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "entity inspector", .type = FL_WIDGET_COMMON,  .p_icon_tex = resources_find(resources, "textures/eye")}
+        &(FlWidgetCtx){
+            .id = "entity inspector",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/eye")
+        }
     );
-    editor_ctx_register_widget(
+    widget_ids.console = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "console", .type = FL_WIDGET_COMMON, .p_icon_tex = resources_find(resources, "textures/question")}
+        &(FlWidgetCtx){
+            .id = "console",
+            .type = FL_WIDGET_COMMON,
+            .p_icon_tex = resources_find(resources, "textures/question")
+        }
     );
-    editor_ctx_register_widget(
+    
+
+    widget_ids.tutorial = editor_ctx_register_widget(
         editor_ctx,
-        &(FlWidgetCtx){ .id = "tutorial", .type = FL_WIDGET_NO_CATEGORY, .p_icon_tex = resources_find(resources, "textures/star")}
+        &(FlWidgetCtx){
+            .id = "tutorial",
+            .type = FL_WIDGET_NO_CATEGORY,
+            .p_icon_tex = resources_find(resources, "textures/star"),
+            .is_open = true
+        }
     );
 
+    float dt = glfwGetTime();
+    float prev_time = glfwGetTime();
 
     while(!glfwWindowShouldClose(p_win)) {
         float current_time = glfwGetTime();
@@ -722,32 +867,13 @@ int main(void) {
 
         handle_grab(p_win, &editor_ctx, &ecs_ctx, &scene, &comps);
 
-        // TODO: remove the selected entity since it is by default passed into the scene itself
-        if(editor_ctx_is_widget_open(editor_ctx, scene_hierarchy_id))
-            render_scene_hierarchy(nk_ctx, &scene, &comps, resources);
-
-        if(editor_ctx_is_widget_open(editor_ctx, "camera properties"))
-            render_camera_properties(nk_ctx, p_win, &cam, &cam_settings);
-
-        if(editor_ctx_is_widget_open(editor_ctx, "resource manager"))
-            render_resource_manager(nk_ctx, resources);
-
-        if(editor_ctx_is_widget_open(editor_ctx, "scene settings"))
-            render_scene_settings(nk_ctx, &scene);
-
-        if(editor_ctx_is_widget_open(editor_ctx, "file browser"))
-            render_file_browser(nk_ctx);
-
-        if(editor_ctx_is_widget_open(editor_ctx, "entity inspector"))
-            render_entity_inspector(nk_ctx, &scene, resources, &comps);
-
-        int w, h;
-        glfwGetWindowSize(p_win, &w, &h);
-
-        if(editor_ctx_is_widget_open(editor_ctx, "tutorial"))
-            render_tutorial(nk_ctx, (vec2){w, h}, resources);
-
-        render_editor_metrics(nk_ctx, p_win, dt);
+// void handle_widgets(FlEditorCtx *p_ctx, struct nk_context *p_nk_ctx,
+//                     Scene *p_scene, GLFWwindow *p_win, Resources resources,
+//                     FlEditorComponents *p_comps, FlEditorWidgetIds *p_ids)
+        handle_widgets(
+            &editor_ctx, nk_ctx, &scene, p_win,
+            resources, &comps, &widget_ids, dt
+        );
 
         // RENDERING
         render_scene_frame(p_win, pipe, &scene, resources, comps);
@@ -755,12 +881,16 @@ int main(void) {
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;
 
-        nk_glfw3_render(&nk_glfw, NK_ANTI_ALIASING_ON, NK_MAX_VERTEX_BUFFER, NK_MAX_ELEMENT_BUFFER);
+        nk_glfw3_render(
+            &nk_glfw,
+            NK_ANTI_ALIASING_ON, NK_MAX_VERTEX_BUFFER, NK_MAX_ELEMENT_BUFFER
+        );
 
         glfwSwapBuffers(p_win);
         glfwPollEvents();
     }
 
+    /// ========== CLEAN UP ========== ///
     editor_ctx_free(editor_ctx);
     fl_ecs_ctx_free(&ecs_ctx);
 

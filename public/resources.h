@@ -35,6 +35,9 @@ Resources resources_create(void);
 // deallocate the resources list
 void resources_free(Resources resources);
 
+// returns the number of elements loaded in resources
+size_t resources_size(Resources resources);
+
 // stores the resource location given the id, type, raw resource, and automatic free function(optional)
 // this does not automatically deallocate the resource.
 const Resource* resources_store(Resources resources, const Resource *p_resource);
