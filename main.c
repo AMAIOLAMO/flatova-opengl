@@ -50,14 +50,6 @@ void framebuffer_size_callback(GLFWwindow* p_win, int width, int height) {
     printf("Detected frame buffer size change\n");
 }
 
-typedef struct DefaultPipeline_t {
-    GLuint vert_buf;
-    GLuint norm_buf;
-    GLuint tex_coord_buf;
-
-    GLuint vert_arr;
-} DefaultPipeline;
-
 Camera cam = {
     .pos  = { 0.0f, 0.5f, 3.0f },
 
@@ -148,7 +140,7 @@ void process_input(GLFWwindow *p_win, float dt) {
                   * cam_move_speed * dt;
 }
 
-void render_grid(Resources resources, const DefaultPipeline pipeline,
+void render_grid(Resources resources, const VertexPipeline pipeline,
                  Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_grid = (Shader*)resources_find(resources, "shaders/grid");
 
@@ -174,7 +166,7 @@ void render_grid(Resources resources, const DefaultPipeline pipeline,
 }
 
 
-void render_skybox(Resources resources, const DefaultPipeline pipeline,
+void render_skybox(Resources resources, const VertexPipeline pipeline,
                    Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_sky_shader = resources_find(resources, "shaders/skybox"   );
     Model  *p_sky_model  = resources_find(resources, "primitives/skybox");
@@ -210,7 +202,7 @@ void render_skybox(Resources resources, const DefaultPipeline pipeline,
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline,
+void render_scene_frame(GLFWwindow *p_win, const VertexPipeline pipeline,
                         FlScene *p_scene, Resources resources,
                         FlEditorComponents comps) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -304,8 +296,8 @@ void render_scene_frame(GLFWwindow *p_win, const DefaultPipeline pipeline,
         mat4 local_to_world_mat = GLM_MAT4_IDENTITY_INIT;
         transform_apply(*p_transform, local_to_world_mat);
 
-
-        // the normal deserves its own matrix, due to world material possibly scaling the normal vectors!
+        // the normal deserves its own matrix,
+        // due to world material possibly scaling the normal vectors
         mat4 normal_mat = GLM_MAT4_IDENTITY_INIT;
         euler_radians_transform_xyz(p_transform->rot, normal_mat);
 
@@ -645,11 +637,14 @@ int main(void) {
     print_working_directory();
 
     /// ========== INITIALIZATION ========== ///
-
     FlEcsCtx ecs_ctx = fl_create_ecs_ctx(
         TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT
     );
 
+    // TODO: check fl_ecs.c for further guidelines in simplifying this into
+    // fl_ecs_add_component(&ecs_ctx, FlTransform);
+    // and all IDs can then be consecutively found by -> fl_ecs_type_id(FlTransform)
+    // Unique ID bound by type
     const FlComponent TRANSFORM_ID = fl_ecs_add_component(
         &ecs_ctx, sizeof(FlTransform)
     );
@@ -676,7 +671,6 @@ int main(void) {
     FlScene scene = {
         .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
         .ambient_color = {0.88f, 0.69f, 0.61f},
-        .light_pos = {5.0f, 1.0f, 2.0f},
         .p_ecs_ctx = &ecs_ctx,
         .selected_entity = 0,
         .wireframe_mode = false,
@@ -822,26 +816,9 @@ int main(void) {
 
     printf("outline Shaders loaded\n");
 
-    resources_store(
-        resources,
-        &(Resource){
-            .id = "primitives/plane",
-            .p_raw = get_prim_plane_vertices(),
-            .type = FL_RES_VERTICES
-        }
-    );
-
     // create buffers
     VertexPipeline vert_pipeline = vertex_gen_buffer_arrays();
 
-    DefaultPipeline pipe = {
-        .vert_buf      = vert_pipeline.vert_buf,
-        .vert_arr      = vert_pipeline.vert_arr,
-        .tex_coord_buf = vert_pipeline.tex_coord_buf,
-        .norm_buf      = vert_pipeline.normal_buf
-    };
-
-    
     FlEditorWidgetIds widget_ids = {0};
 
     register_widgets(&editor_ctx, &widget_ids, resources);
@@ -856,18 +833,17 @@ int main(void) {
         prev_time = current_time;
 
         process_input(editor_ctx.p_win, dt);
+        handle_grab(&editor_ctx, &ecs_ctx, &scene, &comps);
 
         nk_glfw3_new_frame(&nk_glfw);
-
-        handle_grab(&editor_ctx, &ecs_ctx, &scene, &comps);
 
         render_widgets(
             &editor_ctx, &scene,
             resources, &comps, &widget_ids, dt
         );
 
-        // RENDERING
-        render_scene_frame(editor_ctx.p_win, pipe, &scene, resources, comps);
+        // === RENDERING === //
+        render_scene_frame(editor_ctx.p_win, vert_pipeline, &scene, resources, comps);
 
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;

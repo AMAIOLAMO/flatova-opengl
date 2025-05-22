@@ -1,7 +1,7 @@
 ![Flatova Icon](fl_logo_iter1_250x250.png)
 
 # FLATOVA
-An **OpenGL based rendering engine**, featuring simplistic **Entity Component System(ECS)**, and written conforming **C89 standard**.
+An **OpenGL based rendering engine**, featuring simplistic **Entity Component System(ECS)**, and written conforming **C99 standard**.
 
 ## Screenshots
 
@@ -16,7 +16,7 @@ Thanks to Igor Rogov for his [Medieval Tavern!](https://sketchfab.com/3d-models/
 ## Installation
 
 #### Dependencies
-1. Any C89 standard capable compiler
+1. Any C99 standard capable compiler
 2. [Meson Build System](https://mesonbuild.com/)
 
 #### Windows

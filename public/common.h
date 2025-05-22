@@ -39,8 +39,6 @@ void transform_apply(FlTransform transform, mat4 applied_mat);
 typedef struct FlScene_t {
     // TODO: maybe put some of these in Environmental settings?
     /*EnvironmentSettings env_settings;*/
-    vec3 light_pos;
-
     vec4 clear_color;
     vec3 ambient_color;
 

@@ -50,9 +50,9 @@ VertexPipeline vertex_gen_buffer_arrays(void) {
     glBindBuffer(GL_ARRAY_BUFFER, pipeline.tex_coord_buf);
     glVertexAttribPointer(1, sizeof(vec2) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, tex_coord));
 
-    glGenBuffers(1, &pipeline.normal_buf);
+    glGenBuffers(1, &pipeline.norm_buf);
 
-    glBindBuffer(GL_ARRAY_BUFFER, pipeline.normal_buf);
+    glBindBuffer(GL_ARRAY_BUFFER, pipeline.norm_buf);
     glVertexAttribPointer(2, sizeof(vec3) / sizeof(float), GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, normal));
 
     glEnableVertexAttribArray(0);

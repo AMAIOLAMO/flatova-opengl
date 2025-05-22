@@ -110,6 +110,9 @@ static inline size_t fl_ecs_get_comp_table_idx(FlEcsCtx *p_ctx, FlEntityId entit
  #define fl_ecs_type_id(COMP_TYPE) __ecs_type_##COMP_TYPE##_id
 
  fl_ecs_define_type(FlTransform);
+
+ #define fl_ecs_add_comp(P_ECS_CTX, COMP_TYPE) \
+     fl_ecs_add_component((P_ECS_CTX), sizeof(COMP_TYPE), fl_ecs_type_id(COMP_TYPE))
 */
 
 FlComponent fl_ecs_add_component(FlEcsCtx *p_ctx, size_t component_bytes_size) {

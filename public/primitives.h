@@ -18,7 +18,7 @@ size_t  get_prim_plane_vertices_size(void);
 void vertex_load_buffers(Vertex *vertices, size_t total_byte_size, u32 vert_buf, u32 norm_buf, u32 tex_coord_buf);
 
 typedef struct VertexPipeline_t {
-    GLuint vert_arr, vert_buf, tex_coord_buf, normal_buf;
+    GLuint vert_arr, vert_buf, tex_coord_buf, norm_buf;
 } VertexPipeline;
 
 VertexPipeline vertex_gen_buffer_arrays(void);
