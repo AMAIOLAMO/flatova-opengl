@@ -2,14 +2,10 @@
 #ifndef _UTILS_H
 #define _UTILS_H
 
+#include <core/types.h>
+
 #include <cglm/types.h>
 #include <GLFW/glfw3.h>
-
-typedef unsigned char b8;
-typedef unsigned int  u32;
-typedef unsigned long u64;
-typedef char* c_str;
-typedef const char* literal_str;
 
 #define arr_size(ARR) (sizeof(ARR) / sizeof(ARR[0]))
 
