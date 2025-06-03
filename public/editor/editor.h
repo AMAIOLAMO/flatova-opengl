@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _EDITOR_H
-#define _EDITOR_H
+#ifndef _FL_EDITOR_EDITOR_H
+#define _FL_EDITOR_EDITOR_H
 
 #include <GLFW/glfw3.h>
 
@@ -102,4 +102,4 @@ void render_file_browser(struct nk_context *p_ctx);
 void render_entity_inspector(struct nk_context *p_ctx, FlScene *p_scene, Resources resources, FlEditorComponents *p_comps);
 
 
-#endif // _EDITOR_H
+#endif // _FL_EDITOR_EDITOR_H

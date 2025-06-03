@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _SHADER_H
-#define _SHADER_H
+#ifndef _FL_CORE_SHADER_H
+#define _FL_CORE_SHADER_H
 
 #include <GL/gl.h>
 #include <cglm/types.h>
@@ -32,4 +32,4 @@ void shader_set_uniform_mat4fv(const Shader shader, const char *name, mat4 value
 
 b8 try_load_shader_from_files(Shader *p_shader, const char *vert_path, const char *frag_path);
 
-#endif // _SHADER_H
+#endif // _FL_CORE_SHADER_H

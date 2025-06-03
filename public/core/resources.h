@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _RESOURCES_H
-#define _RESOURCES_H
+#ifndef _FL_CORE_RESOURCES_H
+#define _FL_CORE_RESOURCES_H
 
 #include <hashmap.h>
 
@@ -53,4 +53,4 @@ void* resources_find(Resources resources, const char *id);
 b8 resources_iter(Resources resources, size_t *p_iter, Resource **pp_resource);
 
 
-#endif // _RESOURCES_H
+#endif // _FL_CORE_RESOURCES_H

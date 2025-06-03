@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _CAMERA_H
-#define _CAMERA_H
+#ifndef _FL_CORE_CAMERA_H
+#define _FL_CORE_CAMERA_H
 
 #include <cglm/cglm.h>
 
@@ -28,4 +28,4 @@ void camera_up(Camera cam, vec3 up);
 void camera_view_matrix(Camera cam, mat4 cam_mat);
 void camera_proj_matrix(Camera cam, int width, int height, mat4 proj_mat);
 
-#endif // _CAMERA_H
+#endif // _FL_CORE_CAMERA_H

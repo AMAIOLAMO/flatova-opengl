@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _MODEL_H
-#define _MODEL_H
+#ifndef _FL_CORE_MODEL_H
+#define _FL_CORE_MODEL_H
 
 #include <core/primitives.h>
 
@@ -19,4 +19,4 @@ Model* load_model_obj_tri(const char *path);
 // frees the model
 void model_free(Model *p_model);
 
-#endif // _MODEL_H
+#endif // _FL_CORE_MODEL_H

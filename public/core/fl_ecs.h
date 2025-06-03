@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _FL_ECS_H
-#define _FL_ECS_H
+#ifndef _FL_CORE_ECS_H
+#define _FL_CORE_ECS_H
 
 #include <stddef.h>
 #include <core/types.h>
@@ -56,4 +56,4 @@ void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntityId entity, FlCom
 // returns whether or not this entity contains a component
 b8 fl_ecs_entity_has_component(FlEcsCtx *p_ctx, FlEntityId entity, FlComponent component);
 
-#endif // _FL_ECS_H
+#endif // _FL_CORE_ECS_H

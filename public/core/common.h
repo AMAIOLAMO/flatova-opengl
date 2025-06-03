@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _COMMON_H
-#define _COMMON_H
+#ifndef _FL_CORE_COMMON_H
+#define _FL_CORE_COMMON_H
 
 #include <cglm/types.h>
 
@@ -55,4 +55,4 @@ void euler_radians_transform_xyz(vec3 euler_rads, mat4 applied_mat);
 
 float clampf(float val, float min, float max);
 
-#endif // _COMMON_H
+#endif // _FL_CORE_COMMON_H

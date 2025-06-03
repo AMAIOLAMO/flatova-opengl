@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _PRIMITIVES_H
-#define _PRIMITIVES_H
+#ifndef _FL_CORE_PRIMITIVES_H
+#define _FL_CORE_PRIMITIVES_H
 
 #include <cglm/cglm.h>
 
@@ -24,4 +24,4 @@ typedef struct VertexPipeline_t {
 
 VertexPipeline vertex_gen_buffer_arrays(void);
 
-#endif // _PRIMITIVES_H
+#endif // _FL_CORE_PRIMITIVES_H

@@ -3,7 +3,6 @@ HIGH:
 - simplistic gizmos implementation, or blender like short cut controls ([X]g for grab, r for rotate, etc etc)
     - should display Editor Mode in the UI for user feedback (top middle)
 - entity with name component can be renamed
-- Create a simplistic tutorial (text based with images)
 - Make all the widget content to be more consistent
     - Recategorize widgets
     - Make all widget contents all follow same rule (Label left, content right) [Maybe use different colors?]
@@ -17,7 +16,8 @@ MID:
 - Render the scene in a separate window (Requires Frame buffers and render textures) call it Viewport
 - Customize keybinds (Allow setting keybind map[reference from other engines?])
 - Simple Shadow map implementation
-- instead of using booleans for ECS, utilize uint64_t / uint32_t instead, so around 32 / 64 components to be used
+- Replace my fl_ecs instead to use flecs(which coincidentally have very similar name)
+
 
 
 
@@ -42,3 +42,4 @@ COMPLETE:
 - [X] Allow deletion of entities (requires hashmap indirection pointing towards the table)
 - [X] Entities with mesh render should be able to render with a selection outline
 - [X] every entity should have a name component, can be displayed in scene hierarchy(Meta component?)
+- [X]Create a simplistic tutorial (text based with images)

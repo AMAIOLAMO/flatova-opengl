@@ -1,6 +1,6 @@
 #pragma once
-#ifndef _PRIMITIVE_RESOURCES_H
-#define _PRIMITIVE_RESOURCES_H
+#ifndef _FL_CORE_PRIMITIVE_RESOURCES_H
+#define _FL_CORE_PRIMITIVE_RESOURCES_H
 
 #include <core/shader.h>
 #include <core/resources.h>
@@ -44,5 +44,5 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
 
 ResIdStrings* resources_lazy_get_id_strings(Resources res);
 
-#endif // _PRIMITIVE_RESOURCES_H
+#endif // _FL_CORE_PRIMITIVE_RESOURCES_H
 
