@@ -4,7 +4,8 @@
 
 #include <cglm/cglm.h>
 
-#include <utils.h>
+#include <core/types.h>
+#include <GL/gl.h>
 
 typedef struct Vertex_t {
     vec3 pos;

@@ -5,6 +5,8 @@
 #include <tinydir_ext.h>
 #include <cxlist.h>
 
+#include <core/macros.h>
+
 void res_shader_free(void *p_raw) {
     Shader *p_shader = p_raw;
     shader_free(*p_shader);

@@ -7,16 +7,6 @@
 #include <cglm/types.h>
 #include <GLFW/glfw3.h>
 
-#define arr_size(ARR) (sizeof(ARR) / sizeof(ARR[0]))
-
-#define true 1
-#define false 0
-
-#define FL_PI 3.14159265358979f
-#define FL_TAU (FL_PI * 2)
-
-#define DEG2RAD (FL_PI / 180.0f)
-
 // returns -1 if negative key is pressed, 1 if positive key is pressed, and 0 if both are pressed
 float glfw_key_strength(GLFWwindow *p_win, int p_key, int n_key);
 

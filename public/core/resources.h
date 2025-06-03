@@ -4,7 +4,7 @@
 
 #include <hashmap.h>
 
-#include <utils.h>
+#include <core/types.h>
 
 typedef enum ResType_t {
     FL_RES_SHADER_PROG,

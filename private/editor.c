@@ -8,6 +8,7 @@
 #include <nfd.h>
 
 #include <utils.h>
+#include <core/macros.h>
 
 #include <core/model.h>
 #include <core/primitive_resources.h>

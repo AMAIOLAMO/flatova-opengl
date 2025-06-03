@@ -33,6 +33,7 @@
 #include <core/fl_ecs.h>
 #include <core/resources.h>
 #include <core/primitive_resources.h>
+#include <core/macros.h>
 
 #include <utils.h>
 #include <editor.h>

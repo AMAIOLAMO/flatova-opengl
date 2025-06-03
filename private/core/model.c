@@ -1,6 +1,8 @@
 #include <core/model.h>
 
 #include <fast_obj.h>
+#include <core/macros.h>
+
 #include <string.h>
 
 Model* load_model_obj_tri(const char *path) {

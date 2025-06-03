@@ -3,6 +3,7 @@
 
 #include <utils.h>
 #include <core/fl_ecs.h>
+#include <core/macros.h>
 
 typedef struct ExampleComponent_t {
     size_t value;

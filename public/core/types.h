@@ -8,5 +8,13 @@ typedef unsigned long u64;
 typedef char* c_str;
 typedef const char* literal_str;
 
+#ifndef true
+    #define true 1
+#endif
+
+#ifndef false
+    #define false 0
+#endif
+
 
 #endif // _FL_CORE_TYPES_H
