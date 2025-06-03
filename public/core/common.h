@@ -49,5 +49,9 @@ typedef struct FlScene_t {
     FlEcsCtx *p_ecs_ctx;
 } FlScene;
 
+// X -> Y -> Z (parent to child relation, where Z is the most inner children)
+void euler_radians_transform_xyz(vec3 euler_rads, mat4 applied_mat);
+
+float clampf(float val, float min, float max);
 
 #endif // _COMMON_H
