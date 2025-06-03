@@ -4,6 +4,7 @@
 #include <tinydir.h>
 #include <tinydir_ext.h>
 #include <cxlist.h>
+#include <core/gl_utils.h>
 
 #include <core/macros.h>
 

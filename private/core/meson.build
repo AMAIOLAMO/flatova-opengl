@@ -5,6 +5,7 @@ srcs += files(
   'model.c',
   'fl_ecs.c',
   'shader.c',
+  'gl_utils.c',
   'resources.c',
   'primitives.c',
   'primitive_resources.c',
