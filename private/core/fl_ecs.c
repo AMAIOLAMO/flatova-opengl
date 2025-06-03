@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <fl_ecs.h>
+#include <core/fl_ecs.h>
 
 #include <stdio.h>
 #include <stdlib.h>

@@ -1,9 +1,6 @@
 #include <editor.h>
 
 #include <cxlist.h>
-
-#include <model.h>
-#include <primitive_resources.h>
 #include <tinydir.h>
 
 #include <hashmap.h>
@@ -11,9 +8,12 @@
 #include <nfd.h>
 
 #include <utils.h>
-#include <camera.h>
-#include <fl_ecs.h>
-#include <resources.h>
+
+#include <core/model.h>
+#include <core/primitive_resources.h>
+#include <core/camera.h>
+#include <core/fl_ecs.h>
+#include <core/resources.h>
 
 static int fl_widget_ctx_cmp(const void *a, const void *b, void *udata) {
     (void) udata;

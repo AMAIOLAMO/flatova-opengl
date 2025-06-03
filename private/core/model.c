@@ -1,4 +1,4 @@
-#include <model.h>
+#include <core/model.h>
 
 #include <fast_obj.h>
 #include <string.h>

@@ -1,8 +1,8 @@
 #include <glad/glad.h>
 
-#include <shader.h>
-
 #include <stdio.h>
+
+#include <core/shader.h>
 
 
 b8 try_compile_shader_with_err(int type, const char **p_src, GLuint *out_shader, char *compile_log) {

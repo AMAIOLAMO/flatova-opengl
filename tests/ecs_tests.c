@@ -1,7 +1,8 @@
 #include <assert.h>
-#include <fl_ecs.h>
 #include <stdio.h>
+
 #include <utils.h>
+#include <core/fl_ecs.h>
 
 typedef struct ExampleComponent_t {
     size_t value;

@@ -1,4 +1,4 @@
-#include <common.h>
+#include <core/common.h>
 
 void transform_apply(FlTransform transform, mat4 applied_mat) {
     glm_translate(applied_mat, transform.pos);

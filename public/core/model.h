@@ -2,7 +2,7 @@
 #ifndef _MODEL_H
 #define _MODEL_H
 
-#include <primitives.h>
+#include <core/primitives.h>
 
 typedef struct Model_t {
     Vertex *verts;

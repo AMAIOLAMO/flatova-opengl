@@ -4,16 +4,16 @@
 
 #include <utils.h>
 
-#include <camera.h>
+#include <core/camera.h>
 
 #define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_VARARGS
 #include <nuklear.h>
-#include <resources.h>
 
-#include <fl_ecs.h>
-#include <common.h>
+#include <core/resources.h>
+#include <core/fl_ecs.h>
+#include <core/common.h>
 
 #define FL_WIDGET_COMMON      0x0
 #define FL_WIDGET_METRICS     0x1

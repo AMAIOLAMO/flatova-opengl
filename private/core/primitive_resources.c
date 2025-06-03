@@ -1,4 +1,4 @@
-#include <primitive_resources.h>
+#include <core/primitive_resources.h>
 
 #include <stdlib.h>
 #include <tinydir.h>

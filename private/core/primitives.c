@@ -1,6 +1,6 @@
 #include <glad/glad.h>
 
-#include <primitives.h>
+#include <core/primitives.h>
 
 #include <fast_obj.h>
 

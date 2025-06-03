@@ -1,5 +1,4 @@
-#include "hashmap.h"
-#include <resources.h>
+#include <core/resources.h>
 
 #include <assert.h>
 #include <string.h>

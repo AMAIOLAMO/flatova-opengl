@@ -1,4 +1,4 @@
-#include <animation.h>
+#include <core/animation.h>
 #include <assert.h>
 
 // void fl_anim_update_multi(const FlAnimation *anims, size_t anims_size, void *p_val, float t) {

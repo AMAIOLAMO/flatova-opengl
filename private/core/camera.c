@@ -1,4 +1,4 @@
-#include <camera.h>
+#include <core/camera.h>
 
 #include <cglm/cglm.h>
 

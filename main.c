@@ -25,18 +25,17 @@
 #include <nfd.h>
 #include <tinydir.h>
 
-#include <common.h>
+#include <core/common.h>
+#include <core/camera.h>
+#include <core/shader.h>
+#include <core/model.h>
+#include <core/primitives.h>
+#include <core/fl_ecs.h>
+#include <core/resources.h>
+#include <core/primitive_resources.h>
+
 #include <utils.h>
-#include <camera.h>
-#include <shader.h>
-#include <model.h>
-#include <primitives.h>
-
 #include <editor.h>
-#include <fl_ecs.h>
-
-#include <resources.h>
-#include <primitive_resources.h>
 
 // place this after GLFW window initialization, since it requires glfwGetProcAddress
 // and glfw is only initialized when the window has been created
@@ -202,13 +201,10 @@ void render_skybox(Resources resources, const VertexPipeline pipeline,
     }
 }
 
-void render_scene_frame(GLFWwindow *p_win, const VertexPipeline pipeline,
+void render_scene_frame(int width, int height, const VertexPipeline pipeline,
                         FlScene *p_scene, Resources resources,
                         FlEditorComponents comps) {
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    int width, height;
-    glfwGetWindowSize(p_win, &width, &height);
 
     mat4 cam_mat;
     camera_view_matrix(cam, cam_mat);
@@ -843,7 +839,10 @@ int main(void) {
         );
 
         // === RENDERING === //
-        render_scene_frame(editor_ctx.p_win, vert_pipeline, &scene, resources, comps);
+        int width, height;
+        glfwGetWindowSize(editor_ctx.p_win, &width, &height);
+
+        render_scene_frame(width, height, vert_pipeline, &scene, resources, comps);
 
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;

@@ -4,10 +4,10 @@
 
 #include <cglm/types.h>
 
-#include <model.h>
-#include <shader.h>
-#include <fl_ecs.h>
-#include <camera.h>
+#include <core/model.h>
+#include <core/shader.h>
+#include <core/fl_ecs.h>
+#include <core/camera.h>
 
 typedef struct FlTransform_t {
     vec3 pos, rot, scale;

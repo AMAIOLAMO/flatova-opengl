@@ -1,5 +1,5 @@
 #include <assert.h>
-#include <animation.h>
+#include <core/animation.h>
 
 void linear_func(const FlAnimation *p_anim, void *p_val, float t) {
     float *p_float = p_val;

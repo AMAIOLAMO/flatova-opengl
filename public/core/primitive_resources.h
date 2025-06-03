@@ -2,9 +2,9 @@
 #ifndef _PRIMITIVE_RESOURCES_H
 #define _PRIMITIVE_RESOURCES_H
 
-#include <shader.h>
-#include <resources.h>
-#include <model.h>
+#include <core/shader.h>
+#include <core/resources.h>
+#include <core/model.h>
 
 // ======== COMMON RESOURCES LOADING ======== //
 
