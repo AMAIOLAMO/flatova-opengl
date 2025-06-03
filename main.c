@@ -35,8 +35,8 @@
 #include <core/primitive_resources.h>
 #include <core/macros.h>
 
-#include <utils.h>
-#include <editor.h>
+#include <editor/utils.h>
+#include <editor/editor.h>
 
 // place this after GLFW window initialization, since it requires glfwGetProcAddress
 // and glfw is only initialized when the window has been created

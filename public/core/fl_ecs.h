@@ -2,7 +2,8 @@
 #ifndef _FL_ECS_H
 #define _FL_ECS_H
 
-#include <utils.h>
+#include <stddef.h>
+#include <core/types.h>
 
 typedef size_t FlEntityId;
 typedef size_t FlComponent;

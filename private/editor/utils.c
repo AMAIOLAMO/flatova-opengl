@@ -1,7 +1,4 @@
-#include <cglm/cglm.h>
-#include <glad/glad.h>
-#include <utils.h>
-#include <stb_image.h>
+#include <GLFW/glfw3.h>
 
 float glfw_key_strength(GLFWwindow *p_win, int p_key, int n_key) {
     float strength = 0;

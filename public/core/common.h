@@ -44,6 +44,7 @@ typedef struct FlScene_t {
 
     b8 wireframe_mode;
 
+    // TODO: selected entity is not supposed to be in scene(its related to the editor)
     FlEntityId selected_entity;
 
     FlEcsCtx *p_ecs_ctx;

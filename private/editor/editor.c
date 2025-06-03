@@ -1,4 +1,4 @@
-#include <editor.h>
+#include <editor/editor.h>
 
 #include <cxlist.h>
 #include <tinydir.h>
@@ -7,7 +7,7 @@
 #include <string.h>
 #include <nfd.h>
 
-#include <utils.h>
+#include <editor/utils.h>
 #include <core/macros.h>
 
 #include <core/model.h>

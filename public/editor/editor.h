@@ -2,15 +2,14 @@
 #ifndef _EDITOR_H
 #define _EDITOR_H
 
-#include <utils.h>
-
-#include <core/camera.h>
+#include <GLFW/glfw3.h>
 
 #define NK_INCLUDE_DEFAULT_ALLOCATOR
 #define NK_INCLUDE_FIXED_TYPES
 #define NK_INCLUDE_STANDARD_VARARGS
 #include <nuklear.h>
 
+#include <core/camera.h>
 #include <core/resources.h>
 #include <core/fl_ecs.h>
 #include <core/common.h>
