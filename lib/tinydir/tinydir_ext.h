@@ -4,6 +4,7 @@
 
 #include <tinydir.h>
 
+// TODO: make this into pointers instead
 // checks whether or not a directory is a special navigation(. and ..)
 int tinydir_is_nav(const tinydir_file file);
 

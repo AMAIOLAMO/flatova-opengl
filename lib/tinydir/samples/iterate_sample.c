@@ -20,8 +20,7 @@ int main(void)
 		}
 
 		printf("%s", file.name);
-		if (file.is_dir)
-		{
+		if (file.is_dir) {
 			printf("/");
 		}
 		printf("\n");

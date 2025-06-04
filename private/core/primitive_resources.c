@@ -3,11 +3,15 @@
 #include <stdlib.h>
 #include <tinydir.h>
 #include <tinydir_ext.h>
+
 #include <cxlist.h>
+
+#include <core/common.h>
 #include <core/gl_utils.h>
 
 #include <core/macros.h>
 
+// CALLBACK
 void res_shader_free(void *p_raw) {
     Shader *p_shader = p_raw;
     shader_free(*p_shader);
@@ -21,7 +25,10 @@ Shader* resources_load_shader_from_files(Resources resources, const char *identi
     if(try_load_shader_from_files(p_shader, vert_path, frag_path)) {
         resources_store(
             resources,
-            &(Resource){ .id = identifier, .p_raw = p_shader, .type = FL_RES_SHADER_PROG, .free = res_shader_free }
+            &(Resource){
+                .id = identifier, .p_raw = p_shader,
+                .type = FL_RES_SHADER_PROG, .free = res_shader_free
+            }
         );
 
         return p_shader;
@@ -30,6 +37,7 @@ Shader* resources_load_shader_from_files(Resources resources, const char *identi
     return NULL;
 }
 
+// CALLBACK
 void res_model_free(void *p_raw) {
     Model *p_model = p_raw;
     model_free(p_model);
@@ -43,7 +51,10 @@ Model* resources_load_model_from_obj(
     if(p_model)
         resources_store(
             resources,
-            &(Resource){ .id = identifier, .p_raw = p_model, .type = FL_RES_MODEL, .free = res_model_free }
+            &(Resource){
+                .id = identifier, .p_raw = p_model,
+                .type = FL_RES_MODEL, .free = res_model_free
+            }
         );
 
     return p_model;
@@ -67,7 +78,10 @@ GLuint* resources_load_tex2d_linear_from_file(Resources resources, const char *i
 
     resources_store(
         resources,
-        &(Resource){ .id = identifier, .p_raw = p_tex, .type = FL_RES_TEXTURE, .free = res_texture2d_free }
+        &(Resource){
+            .id = identifier, .p_raw = p_tex,
+            .type = FL_RES_TEXTURE, .free = res_texture2d_free
+        }
     );
 
     return p_tex;
@@ -85,7 +99,11 @@ GLuint* resources_load_tex2d_nearest_from_file(Resources resources, const char *
 
     resources_store(
         resources,
-        &(Resource){ .id = identifier, .p_raw = p_tex, .type = FL_RES_TEXTURE, .free = res_texture2d_free });
+        &(Resource){
+            .id = identifier, .p_raw = p_tex,
+            .type = FL_RES_TEXTURE, .free = res_texture2d_free
+        }
+    );
     return p_tex;
 }
 
@@ -112,7 +130,10 @@ ResIdStrings* resources_lazy_get_id_strings(Resources res) {
 
         resources_store(
             res,
-            &(Resource){ .id = ALLOC_RES_STRING_ID, .p_raw = p_strings, .type = FL_RES_OTHER, .free = resources_idstrings_free }
+            &(Resource){
+                .id = ALLOC_RES_STRING_ID, .p_raw = p_strings,
+                .type = FL_RES_OTHER, .free = resources_idstrings_free
+            }
         );
 
         printf("pstr: %p\n", (void*)p_strings);
@@ -120,6 +141,41 @@ ResIdStrings* resources_lazy_get_id_strings(Resources res) {
 
     return p_strings;
 }
+
+    // tinydir_dir dir = {0};
+    // if(tinydir_open(&dir, "./shaders") != -1) {
+    //     printf("OPENED DIR!\n");
+    //
+    //     do {
+    //         tinydir_file file;
+    //
+    //         if(tinydir_readfile(&dir, &file) == -1)
+    //             break;
+    //
+    //         char search_buf[256] = {0};
+    //         if(str_ends_with(file.name, ".vs")) {
+    //             size_t file_name_len = strlen(file.path);
+    //             strcpy(search_buf, file.path);
+    //             printf("File: %s\n", file.path);
+    //
+    //             // change it to fragment shader
+    //             search_buf[file_name_len - strlen("vs")] = 'f';
+    //             printf("\t made -> %s\n", search_buf);
+    //
+    //             tinydir_file file = {0};
+    //
+    //             if(tinydir_file_open(&file, search_buf) == -1) {
+    //                 printf("\t\t Cannot find counter part of its file!\n");
+    //                 continue;
+    //             }
+    //             // else
+    //
+    //             printf("\t\t Found counter part!\n");
+    //         }
+    //
+    //     } while(dir.has_next && tinydir_next(&dir) != -1);
+    // }
+    // tinydir_close(&dir);
 
 void resources_load_dir_recursive(Resources res, size_t depth, const char *path) {
     tinydir_dir vendor_dir = {0};
@@ -146,11 +202,12 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
             }
 
             const char *PRIMITIVES_PREFIX = "primitives/";
-            /*const char *SHADER_PREFIX     = "shaders/";*/
+            const char *SHADER_PREFIX     = "shaders/";
             const char *TEXTURES_PREFIX    = "textures/";
 
             if(file.is_reg) {
                 size_t str_len = strlen(file.name) - strlen(file.extension) + 1;
+                // LOAD PRIMITIVE
                 if(strcmp(file.extension, "obj") == 0) {
                     str_len += strlen(PRIMITIVES_PREFIX);
 
@@ -169,6 +226,7 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
                     "png", "jpeg", "jpg"
                 };
 
+                // LOAD IMAGE
                 for(size_t i = 0; i < arr_size(IMG_FORMATS); i++) {
                     if(strcmp(file.extension, IMG_FORMATS[i]) != 0)
                         continue;
@@ -186,6 +244,46 @@ void resources_load_dir_recursive(Resources res, size_t depth, const char *path)
                     resources_load_tex2d_nearest_from_file(res, id, file.path, GL_RGBA);
 
                     break;
+                }
+                
+
+
+                // LOAD SHADERS
+                // (TODO: this could be improved utilizing meta files
+                //      instead of hard code searching)
+
+                if(str_ends_with(file.path, ".vs")) {
+                    char frag_path[256] = {0};
+                    size_t file_path_len = strlen(file.path);
+                    strcpy(frag_path, file.path);
+
+                    // search buf now contains the .fs counter part of the shader
+                    frag_path[file_path_len - strlen("vs")] = 'f';
+
+                    tinydir_file frag_file = {0};
+
+                    if(tinydir_file_open(&frag_file, frag_path) == -1) {
+                        printf(
+                            "Cannot find counter part fragment shader file for: %s, Ignoring.\n",
+                               frag_file.path
+                        );
+                        continue;
+                    }
+                    // else
+
+                    str_len += strlen(SHADER_PREFIX);
+                    char *id = malloc(str_len);
+                    memset(id, '\0', str_len);
+                    strncpy(id, SHADER_PREFIX, strlen(SHADER_PREFIX));
+                    strncat(id, file.name, strlen(file.name) - strlen(file.extension) - 1);
+
+                    list_append(p_strings, id);
+
+                    resources_load_shader_from_files(
+                        res, id, file.path, frag_path
+                    );
+
+                    printf("Loaded shaders %s from path: %s & %s\n", id, file.path, frag_path);
                 }
             }
 

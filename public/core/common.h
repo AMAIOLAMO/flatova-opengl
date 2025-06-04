@@ -53,6 +53,11 @@ typedef struct FlScene_t {
 // X -> Y -> Z (parent to child relation, where Z is the most inner children)
 void euler_radians_transform_xyz(vec3 euler_rads, mat4 applied_mat);
 
+
+// clamps the given value
 float clampf(float val, float min, float max);
+
+// checks if the given C-strings(str) ends with the given compare string case sensitively
+b8 str_ends_with(const char *str, const char *cmp_str);
 
 #endif // _FL_CORE_COMMON_H

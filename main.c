@@ -50,6 +50,7 @@ void framebuffer_size_callback(GLFWwindow* p_win, int width, int height) {
     printf("Detected frame buffer size change\n");
 }
 
+// Engine
 Camera cam = {
     .pos  = { 0.0f, 0.5f, 3.0f },
 
@@ -61,6 +62,7 @@ Camera cam = {
     .far  = 100.0f
 };
 
+// Engine
 CameraSettings cam_settings = {
     .max_vrot          = 89.0f * DEG2RAD,
     .sensitivity       = 0.0007f,
@@ -68,6 +70,7 @@ CameraSettings cam_settings = {
     .default_fly_speed = 2.0f
 };
 
+// Editor GLFW
 void glfw_cursor_callback(GLFWwindow *p_win, double x, double y) {
     static b8 cursor_pressed = false;
 
@@ -106,6 +109,7 @@ void glfw_cursor_callback(GLFWwindow *p_win, double x, double y) {
     }
 }
 
+// Editor GLFW
 void process_input(GLFWwindow *p_win, float dt) {
     if(glfwGetKey(p_win, GLFW_KEY_ESCAPE) == GLFW_PRESS)
         glfwSetWindowShouldClose(p_win, true);
@@ -140,6 +144,7 @@ void process_input(GLFWwindow *p_win, float dt) {
                   * cam_move_speed * dt;
 }
 
+// ENGINE
 void render_grid(Resources resources, const VertexPipeline pipeline,
                  Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_grid = (Shader*)resources_find(resources, "shaders/grid");
@@ -166,6 +171,7 @@ void render_grid(Resources resources, const VertexPipeline pipeline,
 }
 
 
+// ENGINE
 void render_skybox(Resources resources, const VertexPipeline pipeline,
                    Camera *p_cam, mat4 view_proj_mat) {
     Shader *p_sky_shader = resources_find(resources, "shaders/skybox"   );
@@ -202,6 +208,7 @@ void render_skybox(Resources resources, const VertexPipeline pipeline,
     }
 }
 
+// Engine + Editor (Split this)
 void render_scene_frame(int width, int height, const VertexPipeline pipeline,
                         FlScene *p_scene, Resources resources,
                         FlEditorComponents comps) {
@@ -403,6 +410,7 @@ void render_scene_frame(int width, int height, const VertexPipeline pipeline,
 }
 
 
+// Editor
 int fl_glfw_init(GLFWwindow **pp_win) {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
@@ -446,11 +454,7 @@ int fl_glfw_init(GLFWwindow **pp_win) {
     return true;
 }
 
-typedef struct FlId2Idx_t {
-    FlEntityId id;
-    size_t idx;
-} FlId2Idx;
-
+// Editor
 void handle_grab(FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
                  FlScene *p_scene, FlEditorComponents *p_comps) {
     static vec3 original_location;
@@ -521,10 +525,11 @@ void handle_grab(FlEditorCtx *p_editor, FlEcsCtx *p_ecs,
 const size_t TBL_ENTITY_COUNT    = 100;
 const size_t TBL_COMPONENT_COUNT = 32;
 
-void print_working_directory(void) {
+// Common
+void print_working_directory(FILE *file) {
     char cwd_path[512];
     getcwd(cwd_path, arr_size(cwd_path));
-    printf("running on working directory: %s\n", cwd_path);
+    fprintf(file, "Running on working directory: %s\n", cwd_path);
 }
 
 void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources resources) {
@@ -630,8 +635,21 @@ void render_widgets(FlEditorCtx *p_ctx, FlScene *p_scene,
     render_editor_metrics(p_ctx->p_nk_ctx, p_ctx->p_win, dt);
 }
 
+void glfw_setup_flatova_icon(GLFWwindow *p_win) {
+    GLFWimage img = {0};
+
+    int nchannels;
+    img.pixels = stbi_load(
+        "fl_logo_iter1.png", &img.width, &img.height, &nchannels, 0
+    );
+
+    glfwSetWindowIcon(p_win, 1, &img);
+
+    stbi_image_free(img.pixels);
+}
+
 int main(void) {
-    print_working_directory();
+    print_working_directory(stdout);
 
     /// ========== INITIALIZATION ========== ///
     FlEcsCtx ecs_ctx = fl_create_ecs_ctx(
@@ -713,106 +731,14 @@ int main(void) {
             }
         );
     }
-    
+
     // loop through contents in vendor
     const size_t DIR_DEPTH = 5;
     resources_load_dir_recursive(resources, DIR_DEPTH, "./vendor");
 
     // SETUP WINDOW ICON
-    {
-        GLFWimage img = {0};
-
-        int nchannels;
-        img.pixels = stbi_load(
-            "fl_logo_iter1.png", &img.width, &img.height, &nchannels, 0
-        );
-
-        glfwSetWindowIcon(editor_ctx.p_win, 1, &img);
-
-        stbi_image_free(img.pixels);
-    }
-
-
-    // TODO: LOAD all shaders in vendor using recursive loading instead,
-    // this method is tedious and makes the code too long
-    if(resources_load_shader_from_files(
-        resources, "shaders/grid",
-        "./shaders/grid.vs", "./shaders/grid.fs"
-    ) == NULL) {
-        printf("Error: Failed to load grid shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("Grid Shaders loaded\n");
-
-
-    if(resources_load_shader_from_files(
-        resources, "shaders/unlit",
-        "./shaders/unlit.vs", "./shaders/unlit.fs"
-    ) == NULL) {
-        printf("Error: Failed to load unlit shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("Unlit Shaders loaded\n");
-
-    if(resources_load_shader_from_files(
-        resources, "shaders/phong",
-        "./shaders/phong.vs", "./shaders/phong.fs"
-    ) == NULL) {
-        printf("Error: Failed to load phong shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("Phong shader loaded\n");
-
-    if(resources_load_shader_from_files(
-        resources, "shaders/skybox",
-        "./shaders/skybox.vs", "./shaders/skybox.fs"
-    ) == NULL) {
-        printf("Error: Failed to load skybox shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("Skybox shader loaded\n");
-
-    if(resources_load_shader_from_files(
-        resources, "shaders/depth_only",
-        "./shaders/depth_only.vs", "./shaders/depth_only.fs"
-    ) == NULL) {
-        printf("Error: Failed to load depth shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("depth Shaders loaded\n");
+    glfw_setup_flatova_icon(editor_ctx.p_win);
     
-    if(resources_load_shader_from_files(
-        resources, "shaders/single_color",
-        "./shaders/single_color.vs", "./shaders/single_color.fs"
-    ) == NULL) {
-        printf("Error: Failed to load single color shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("single Color Shaders loaded\n");
-
-    if(resources_load_shader_from_files(
-        resources, "shaders/outline",
-        "./shaders/outline.vs", "./shaders/outline.fs"
-    ) == NULL) {
-        printf("Error: Failed to load outline shaders!\n");
-        glfwTerminate();
-        return -1;
-    }
-
-    printf("outline Shaders loaded\n");
-
     // create buffers
     VertexPipeline vert_pipeline = vertex_gen_buffer_arrays();
 
