@@ -13,6 +13,9 @@ typedef struct Vertex_t {
     vec2 tex_coord;
 } Vertex;
 
+Vertex* get_prim_plane_vertices(void);
+size_t get_prim_plane_vertices_size(void);
+
 void vertex_load_buffers(Vertex *vertices, size_t total_byte_size, u32 vert_buf, u32 norm_buf, u32 tex_coord_buf);
 
 typedef struct VertexPipeline_t {
