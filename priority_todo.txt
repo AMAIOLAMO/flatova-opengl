@@ -8,6 +8,7 @@ HIGH:
     - Make all widget contents all follow same rule (Label left, content right) [Maybe use different colors?]
     - Learn to use groups and categorize UI more
 - Create a [X]Console Widget, Log errors, outputs there
+- Make Editor Module to be hot reloadable, and run by a hot reloader main (Preparation for hot reloading)
 
 
 MID:
@@ -17,8 +18,6 @@ MID:
 - Customize keybinds (Allow setting keybind map[reference from other engines?])
 - Simple Shadow map implementation
 - Replace my fl_ecs instead to use flecs(which coincidentally have very similar name)
-
-
 
 
 LOW:
@@ -33,6 +32,7 @@ UNKNOWN:
 ---
 
 COMPLETE:
+- [X] Isolated Engine Core Module and Editor Module
 - [X] Load images by default to be nearest
 - [X] rewrite the model loading to allow them to load triangulated meshes instead (ignoring any other type of mesh, and or triangulation)
 - [X] write a makefile for others to initialize the project easily,

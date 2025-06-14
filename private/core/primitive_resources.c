@@ -142,41 +142,6 @@ ResIdStrings* resources_lazy_get_id_strings(Resources res) {
     return p_strings;
 }
 
-    // tinydir_dir dir = {0};
-    // if(tinydir_open(&dir, "./shaders") != -1) {
-    //     printf("OPENED DIR!\n");
-    //
-    //     do {
-    //         tinydir_file file;
-    //
-    //         if(tinydir_readfile(&dir, &file) == -1)
-    //             break;
-    //
-    //         char search_buf[256] = {0};
-    //         if(str_ends_with(file.name, ".vs")) {
-    //             size_t file_name_len = strlen(file.path);
-    //             strcpy(search_buf, file.path);
-    //             printf("File: %s\n", file.path);
-    //
-    //             // change it to fragment shader
-    //             search_buf[file_name_len - strlen("vs")] = 'f';
-    //             printf("\t made -> %s\n", search_buf);
-    //
-    //             tinydir_file file = {0};
-    //
-    //             if(tinydir_file_open(&file, search_buf) == -1) {
-    //                 printf("\t\t Cannot find counter part of its file!\n");
-    //                 continue;
-    //             }
-    //             // else
-    //
-    //             printf("\t\t Found counter part!\n");
-    //         }
-    //
-    //     } while(dir.has_next && tinydir_next(&dir) != -1);
-    // }
-    // tinydir_close(&dir);
-
 void resources_load_dir_recursive(Resources res, size_t depth, const char *path) {
     tinydir_dir vendor_dir = {0};
 

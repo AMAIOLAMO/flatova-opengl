@@ -1,4 +1,4 @@
-srcs += files(
+core_srcs += files(
   'animation.c',
   'common.c',
   'camera.c',
@@ -10,4 +10,5 @@ srcs += files(
   'resources.c',
   'primitives.c',
   'primitive_resources.c',
+  'cross_load.c',
 )

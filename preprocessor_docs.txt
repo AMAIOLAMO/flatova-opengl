@@ -1,0 +1,7 @@
+Reserved Preprocessors:
+_FL_xxxx -> Flatova related header guard macros / files
+
+_FL_WIN32 -> Windows related header guard
+_FL_POSIX -> POSIX standard related header guard
+
+_FL_NDEBUG -> Not debug

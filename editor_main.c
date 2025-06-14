@@ -1,3 +1,4 @@
+#include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -527,9 +528,12 @@ const size_t TBL_COMPONENT_COUNT = 32;
 
 // Common
 void print_working_directory(FILE *file) {
+#if defined(_FL_NDEBUG)
+#else
     char cwd_path[512];
     getcwd(cwd_path, arr_size(cwd_path));
     fprintf(file, "Running on working directory: %s\n", cwd_path);
+#endif
 }
 
 void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources resources) {
@@ -633,6 +637,7 @@ void render_widgets(FlEditorCtx *p_ctx, FlScene *p_scene,
         render_tutorial(p_ctx->p_nk_ctx, (vec2){w, h}, resources);
 
     render_editor_metrics(p_ctx->p_nk_ctx, p_ctx->p_win, dt);
+
 }
 
 void glfw_setup_flatova_icon(GLFWwindow *p_win) {
