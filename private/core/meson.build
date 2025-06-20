@@ -6,9 +6,9 @@ core_srcs += files(
   'fl_ecs.c',
   'shader.c',
   'gl_utils.c',
+  'cross_load.c',
   'utils.c',
   'resources.c',
   'primitives.c',
   'primitive_resources.c',
-  'cross_load.c',
 )

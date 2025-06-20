@@ -653,11 +653,36 @@ void glfw_setup_flatova_icon(GLFWwindow *p_win) {
     stbi_image_free(img.pixels);
 }
 
-int main(void) {
+typedef void(*fl_empty_callback_t)(void);
+
+fl_empty_callback_t g_hotreload_callback = NULL;
+
+void fl_set_on_request_hot_reload_callback(fl_empty_callback_t callback) {
+    g_hotreload_callback = callback;
+}
+
+typedef struct FlHotreloadState_t {
+    FlEcsCtx ecs_ctx;
+    FlEditorComponents comps;
+    FlScene scene;
+    Resources resources;
+    FlEditorCtx editor_ctx;
+    struct nk_glfw nk_glfw;
+    VertexPipeline vert_pipeline;
+    FlEditorWidgetIds widget_ids;
+} FlHotreloadState;
+
+size_t fl_state_byte_size(void) {
+    return sizeof(FlHotreloadState);
+}
+
+int fl_init(void *p_state) {
+    FlHotreloadState *p_fl_state = p_state;
+
     print_working_directory(stdout);
 
     /// ========== INITIALIZATION ========== ///
-    FlEcsCtx ecs_ctx = fl_create_ecs_ctx(
+    p_fl_state->ecs_ctx = fl_create_ecs_ctx(
         TBL_ENTITY_COUNT, TBL_COMPONENT_COUNT
     );
 
@@ -666,69 +691,69 @@ int main(void) {
     // and all IDs can then be consecutively found by -> fl_ecs_type_id(FlTransform)
     // Unique ID bound by type
     const FlComponent TRANSFORM_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(FlTransform)
+        &p_fl_state->ecs_ctx, sizeof(FlTransform)
     );
 
     const FlComponent MESH_RENDER_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(FlMeshRender)
+        &p_fl_state->ecs_ctx, sizeof(FlMeshRender)
     );
 
     const FlComponent DIR_LIGHT_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(FlGlobalLight)
+        &p_fl_state->ecs_ctx, sizeof(FlGlobalLight)
     );
 
     const FlComponent META_ID = fl_ecs_add_component(
-        &ecs_ctx, sizeof(FlMeta)
+        &p_fl_state->ecs_ctx, sizeof(FlMeta)
     );
 
-    FlEditorComponents comps = {
+    p_fl_state->comps = (FlEditorComponents){
         .transform   = TRANSFORM_ID,
         .mesh_render = MESH_RENDER_ID,
         .dir_light   = DIR_LIGHT_ID,
         .meta        = META_ID
     };
 
-    FlScene scene = {
+    p_fl_state->scene = (FlScene){
         .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
         .ambient_color = {0.88f, 0.69f, 0.61f},
-        .p_ecs_ctx = &ecs_ctx,
+        .p_ecs_ctx = &p_fl_state->ecs_ctx,
         .selected_entity = 0,
         .wireframe_mode = false,
     };
 
-    Resources resources = resources_create();
+    p_fl_state->resources = resources_create();
 
-    FlEditorCtx editor_ctx = {
+    p_fl_state->editor_ctx = (FlEditorCtx){
         .widgets = editor_ctx_create_widgets(),
         .mode = FL_EDITOR_VIEW
     };
 
-    struct nk_glfw nk_glfw = {0};
+    p_fl_state->nk_glfw = (struct nk_glfw){0};
 
     NFD_Init();
 
-    if(fl_glfw_init(&editor_ctx.p_win) == false) {
+    if(fl_glfw_init(&p_fl_state->editor_ctx.p_win) == false) {
         printf("Error: Failed to initialize GLFW! aborting...\n");
         return -1;
     }
 
-    editor_ctx.p_nk_ctx = nk_glfw3_init(&nk_glfw, editor_ctx.p_win, NK_GLFW3_INSTALL_CALLBACKS);
+    p_fl_state->editor_ctx.p_nk_ctx = nk_glfw3_init(&p_fl_state->nk_glfw, p_fl_state->editor_ctx.p_win, NK_GLFW3_INSTALL_CALLBACKS);
     {
         struct nk_font_atlas *nk_atlas;
 
         const int DEFAULT_FONT_SIZE = 18;
         const int DPI_SCALED_FONT_SIZE = g_scaling_x(DEFAULT_FONT_SIZE);
 
-        nk_glfw3_font_stash_begin(&nk_glfw, &nk_atlas);
+        nk_glfw3_font_stash_begin(&p_fl_state->nk_glfw, &nk_atlas);
         struct nk_font *roboto_regular = nk_font_atlas_add_from_file(
             nk_atlas,
             "vendor/default_fonts/Roboto-Regular.ttf", DPI_SCALED_FONT_SIZE, 0
         );
-        nk_glfw3_font_stash_end(&nk_glfw);
-        nk_style_set_font(editor_ctx.p_nk_ctx, &roboto_regular->handle);
+        nk_glfw3_font_stash_end(&p_fl_state->nk_glfw);
+        nk_style_set_font(p_fl_state->editor_ctx.p_nk_ctx, &roboto_regular->handle);
 
         resources_store(
-            resources,
+            p_fl_state->resources,
             &(Resource) {
                 .id = "fonts/roboto_regular",
                 .p_raw = roboto_regular,
@@ -739,65 +764,86 @@ int main(void) {
 
     // loop through contents in vendor
     const size_t DIR_DEPTH = 5;
-    resources_load_dir_recursive(resources, DIR_DEPTH, "./vendor");
+    resources_load_dir_recursive(p_fl_state->resources, DIR_DEPTH, "./vendor");
 
     // SETUP WINDOW ICON
-    glfw_setup_flatova_icon(editor_ctx.p_win);
+    glfw_setup_flatova_icon(p_fl_state->editor_ctx.p_win);
     
     // create buffers
-    VertexPipeline vert_pipeline = vertex_gen_buffer_arrays();
+    p_fl_state->vert_pipeline = vertex_gen_buffer_arrays();
 
-    FlEditorWidgetIds widget_ids = {0};
+    p_fl_state->widget_ids = (FlEditorWidgetIds){0};
 
-    register_widgets(&editor_ctx, &widget_ids, resources);
+    register_widgets(&p_fl_state->editor_ctx, &p_fl_state->widget_ids, p_fl_state->resources);
+
+    return 0;
+}
+
+int fl_reload(void *p_state) {
+    FlHotreloadState *p_fl_state = p_state;
+    (void) p_fl_state;
+
+    // for now, does not do anything when reload
+
+    return 0;
+}
+
+int fl_close(void *p_state) {
+    FlHotreloadState *p_fl_state = p_state;
+
+    /// ========== CLEAN UP ========== ///
+    editor_ctx_free_widgets(p_fl_state->editor_ctx.widgets);
+    fl_ecs_ctx_free(&p_fl_state->ecs_ctx);
+
+    resources_free(p_fl_state->resources);
+
+    nk_glfw3_shutdown(&p_fl_state->nk_glfw);
+    glfwTerminate();
+
+    NFD_Quit();
+
+    return 0;
+}
+
+int fl_run(void *p_state) {
+    FlHotreloadState *p_fl_state = p_state;
 
     /// ========== EDITOR LOOP ========== ///
     float dt = glfwGetTime();
     float prev_time = glfwGetTime();
 
-    while(!glfwWindowShouldClose(editor_ctx.p_win)) {
+    while(!glfwWindowShouldClose(p_fl_state->editor_ctx.p_win)) {
         float current_time = glfwGetTime();
         dt = current_time - prev_time;
         prev_time = current_time;
 
-        process_input(editor_ctx.p_win, dt);
-        handle_grab(&editor_ctx, &ecs_ctx, &scene, &comps);
+        process_input(p_fl_state->editor_ctx.p_win, dt);
+        handle_grab(&p_fl_state->editor_ctx, &p_fl_state->ecs_ctx, &p_fl_state->scene, &p_fl_state->comps);
 
-        nk_glfw3_new_frame(&nk_glfw);
+        nk_glfw3_new_frame(&p_fl_state->nk_glfw);
 
         render_widgets(
-            &editor_ctx, &scene,
-            resources, &comps, &widget_ids, dt
+            &p_fl_state->editor_ctx, &p_fl_state->scene,
+            p_fl_state->resources, &p_fl_state->comps, &p_fl_state->widget_ids, dt
         );
 
         // === RENDERING === //
         int width, height;
-        glfwGetWindowSize(editor_ctx.p_win, &width, &height);
+        glfwGetWindowSize(p_fl_state->editor_ctx.p_win, &width, &height);
 
-        render_scene_frame(width, height, vert_pipeline, &scene, resources, comps);
+        render_scene_frame(width, height, p_fl_state->vert_pipeline, &p_fl_state->scene, p_fl_state->resources, p_fl_state->comps);
 
         const size_t NK_MAX_VERTEX_BUFFER  = 512 * 1024;
         const size_t NK_MAX_ELEMENT_BUFFER = 128 * 1024;
 
         nk_glfw3_render(
-            &nk_glfw,
+            &p_fl_state->nk_glfw,
             NK_ANTI_ALIASING_ON, NK_MAX_VERTEX_BUFFER, NK_MAX_ELEMENT_BUFFER
         );
 
-        glfwSwapBuffers(editor_ctx.p_win);
+        glfwSwapBuffers(p_fl_state->editor_ctx.p_win);
         glfwPollEvents();
     }
-
-    /// ========== CLEAN UP ========== ///
-    editor_ctx_free_widgets(editor_ctx.widgets);
-    fl_ecs_ctx_free(&ecs_ctx);
-
-    resources_free(resources);
-
-    nk_glfw3_shutdown(&nk_glfw);
-    glfwTerminate();
-
-    NFD_Quit();
 
     return 0;
 }

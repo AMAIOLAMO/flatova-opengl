@@ -30,23 +30,23 @@ all_deps = [core_deps, editor_deps]
 subdir('tests')
 
 # build core dynlib
-shared_library('flatova_core',
-  sources: all_srcs,
-  dependencies: all_deps,
-  include_directories: includes,
-)
+# shared_library('flatova_core',
+#   sources: all_srcs,
+#   dependencies: all_deps,
+#   include_directories: includes,
+# )
 
 # build editor dynlib
 shared_library('flatova_editor',
-  sources: all_srcs,
+  sources: all_srcs + files('editor_main.c'),
   dependencies: all_deps,
   include_directories: includes,
 )
 
 # lightweight hot-reloading
 executable('flatova_editor_run',
-  sources: all_srcs + files('editor_main.c'),
+  sources: all_srcs + files('editor_runner.c'),
   dependencies: all_deps,
   include_directories: includes,
-  install : true
+  install : false
 )

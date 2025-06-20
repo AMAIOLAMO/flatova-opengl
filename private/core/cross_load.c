@@ -3,7 +3,7 @@
 #include <dlfcn.h>
 #include <stdlib.h>
 
-fl_dynlib_err_t fl_load_lib(const char *path, fl_dynlib_t *p_handle) {
+fl_dynlib_err_t fl_open_lib(const char *path, fl_dynlib_t *p_handle) {
 
 #if defined(_FL_WIN32)
     *p_handle = LoadLibraryA(path);
@@ -20,6 +20,7 @@ fl_dynlib_err_t fl_load_lib(const char *path, fl_dynlib_t *p_handle) {
 }
 
 void* fl_load_func(fl_dynlib_t handle, const char *sym_name) {
+
 #if defined(_FL_WIN32)
     return GetProcAddress(handle, sym_name);
 
@@ -30,6 +31,7 @@ void* fl_load_func(fl_dynlib_t handle, const char *sym_name) {
 }
 
 void fl_close_lib(fl_dynlib_t handle) {
+
 #if defined(_FL_WIN32)
     FreeLibrary(handle);
 
