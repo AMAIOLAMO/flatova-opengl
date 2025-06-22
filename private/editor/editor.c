@@ -1,3 +1,4 @@
+#include <GLFW/glfw3.h>
 #include <editor/editor.h>
 
 #include <cxlist.h>
@@ -577,6 +578,16 @@ void render_scene_settings(struct nk_context *p_ctx, FlScene *p_scene) {
     nk_end(p_ctx);
 }
 
+fl_empty_callback_t g_hotreload_callback = NULL;
+b8 g_request_hotreload = false;
+
+b8 fl_request_hotreload(void) {
+    return g_request_hotreload;
+}
+
+void fl_set_on_request_hot_reload_callback(fl_empty_callback_t callback) {
+    g_hotreload_callback = callback;
+}
 
 void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources resources, FlEditorCtx *p_editor_ctx) {
     int width, height;
@@ -588,7 +599,7 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
         struct nk_image widgets_icon = nk_image_id(*p_icon_tex);
 
-        const size_t MENU_WIDGET_COUNT = 5;
+        const size_t MENU_WIDGET_COUNT = 6;
 
         size_t common_size = 0;
         FlWidgetCtx *common_widgets[32] = {0};
@@ -733,6 +744,24 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
 
         nk_checkbox_label(p_ctx, p_tut_widget_ctx->id, &is_open);
         editor_ctx_set_widget_open(*p_editor_ctx, p_tut_widget_ctx->id, is_open);
+
+        nk_layout_row_push(p_ctx, DPI_SCALEY(120));
+        // TODO: add icon for hotreload
+        if(nk_button_label(p_ctx, "Hotreload Editor")) {
+            printf("[Editor] request for hotreload\n");
+            if(g_hotreload_callback == NULL)
+                printf("[Editor] hotreload failed, callback not set\n");
+            else {
+                printf("[Editor] hotreloading...\n");
+               
+                // TODO: perhaps combine these two together? this looks like a hack
+                g_hotreload_callback();
+                g_request_hotreload = true;
+                glfwSetWindowShouldClose(p_win, GLFW_TRUE);
+
+                printf("[Editor] hotreload callback called\n");
+            }
+        }
 
         nk_menubar_end(p_ctx);
         nk_layout_row_end(p_ctx);

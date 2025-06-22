@@ -653,14 +653,6 @@ void glfw_setup_flatova_icon(GLFWwindow *p_win) {
     stbi_image_free(img.pixels);
 }
 
-typedef void(*fl_empty_callback_t)(void);
-
-fl_empty_callback_t g_hotreload_callback = NULL;
-
-void fl_set_on_request_hot_reload_callback(fl_empty_callback_t callback) {
-    g_hotreload_callback = callback;
-}
-
 typedef struct FlHotreloadState_t {
     FlEcsCtx ecs_ctx;
     FlEditorComponents comps;
@@ -791,6 +783,8 @@ int fl_reload(void *p_state) {
 int fl_close(void *p_state) {
     FlHotreloadState *p_fl_state = p_state;
 
+    printf("[Editor] Cleaning up...\n");
+
     /// ========== CLEAN UP ========== ///
     editor_ctx_free_widgets(p_fl_state->editor_ctx.widgets);
     fl_ecs_ctx_free(&p_fl_state->ecs_ctx);
@@ -802,8 +796,14 @@ int fl_close(void *p_state) {
 
     NFD_Quit();
 
+    printf("[Editor] Clean up complete.\n");
+
     return 0;
 }
+
+// TODO: put this somewhere that both runner and editor can reference
+#define FL_HOTRELOAD_REQUEST 0x1
+#define FL_EXIT 0x2
 
 int fl_run(void *p_state) {
     FlHotreloadState *p_fl_state = p_state;
@@ -812,7 +812,7 @@ int fl_run(void *p_state) {
     float dt = glfwGetTime();
     float prev_time = glfwGetTime();
 
-    while(!glfwWindowShouldClose(p_fl_state->editor_ctx.p_win)) {
+    while(!glfwWindowShouldClose(p_fl_state->editor_ctx.p_win) && !fl_request_hotreload()) {
         float current_time = glfwGetTime();
         dt = current_time - prev_time;
         prev_time = current_time;
@@ -845,5 +845,9 @@ int fl_run(void *p_state) {
         glfwPollEvents();
     }
 
-    return 0;
+    if(fl_request_hotreload())
+        return FL_HOTRELOAD_REQUEST;
+    // else
+
+    return FL_EXIT;
 }

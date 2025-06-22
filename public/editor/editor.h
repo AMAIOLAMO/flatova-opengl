@@ -95,6 +95,13 @@ void render_scene_settings(struct nk_context *p_ctx, FlScene *p_scene);
 void render_tutorial(struct nk_context *p_ctx, vec2 win_size, Resources resources);
 
 
+typedef void(*fl_empty_callback_t)(void);
+
+void fl_set_on_request_hot_reload_callback(fl_empty_callback_t callback);
+
+b8 fl_request_hotreload(void);
+
+
 void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources resources, FlEditorCtx *p_editor_ctx);
 
 void render_file_browser(struct nk_context *p_ctx);
