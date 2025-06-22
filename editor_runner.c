@@ -1,12 +1,12 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #include <core/cross_load.h>
 #include <core/utils.h>
-#include <stdlib.h>
+#include <editor/hotreload.h>
 
 // TODO: put all of these definitions in another separate header file instead
 typedef size_t (*fl_state_byte_size_func_t)(void);
-typedef void(*fl_empty_callback_t)(void);
 
 typedef void (*fl_set_on_request_hot_reload_callback_func_t)(fl_empty_callback_t callback);
 
@@ -55,16 +55,9 @@ FUNC_NAME##_func = (FUNC_NAME##_func_t)fl_load_func(*p_handle, #FUNC_NAME); \
     return 0;
 }
 
-// TODO: put this somewhere that both runner and editor can reference
-#define FL_HOTRELOAD_REQUEST 0x1
-#define FL_EXIT 0x2
-
-
 int main(void) {
     fl_dynlib_t lib;
 
-    // else
-    
     void *p_hotreload_state = NULL;
 
     while(true) {
@@ -72,6 +65,7 @@ int main(void) {
             printf("[Editor Runner] Failed to load library!\n");
             return -1;
         }
+
         p_hotreload_state = realloc(p_hotreload_state, fl_state_byte_size_func());
 
         fl_init_func(p_hotreload_state);
@@ -81,7 +75,7 @@ int main(void) {
         int exit_code = fl_run_func(p_hotreload_state);
 
         if(exit_code == FL_EXIT) {
-            printf("[Editor Runner] did not detect hotreload, exiting...\n");
+            printf("[Editor Runner] exiting...\n");
             fl_close_func(p_hotreload_state);
             break;
         }

@@ -43,8 +43,8 @@ shared_library('flatova_editor',
   include_directories: includes,
 )
 
-# lightweight hot-reloading
-executable('flatova_editor_run',
+# lightweight editor runner
+executable('flatova_editor',
   sources: all_srcs + files('editor_runner.c'),
   dependencies: all_deps,
   include_directories: includes,

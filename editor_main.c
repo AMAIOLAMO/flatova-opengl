@@ -38,6 +38,7 @@
 
 #include <editor/utils.h>
 #include <editor/editor.h>
+#include <editor/hotreload.h>
 
 // place this after GLFW window initialization, since it requires glfwGetProcAddress
 // and glfw is only initialized when the window has been created
@@ -801,9 +802,6 @@ int fl_close(void *p_state) {
     return 0;
 }
 
-// TODO: put this somewhere that both runner and editor can reference
-#define FL_HOTRELOAD_REQUEST 0x1
-#define FL_EXIT 0x2
 
 int fl_run(void *p_state) {
     FlHotreloadState *p_fl_state = p_state;
@@ -812,7 +810,7 @@ int fl_run(void *p_state) {
     float dt = glfwGetTime();
     float prev_time = glfwGetTime();
 
-    while(!glfwWindowShouldClose(p_fl_state->editor_ctx.p_win) && !fl_request_hotreload()) {
+    while(!glfwWindowShouldClose(p_fl_state->editor_ctx.p_win) && !fl_is_request_hotreload()) {
         float current_time = glfwGetTime();
         dt = current_time - prev_time;
         prev_time = current_time;
@@ -845,7 +843,7 @@ int fl_run(void *p_state) {
         glfwPollEvents();
     }
 
-    if(fl_request_hotreload())
+    if(fl_is_request_hotreload())
         return FL_HOTRELOAD_REQUEST;
     // else
 

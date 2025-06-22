@@ -8,7 +8,6 @@
 #include <string.h>
 #include <nfd.h>
 
-#include <editor/utils.h>
 #include <core/macros.h>
 
 #include <core/model.h>
@@ -16,6 +15,9 @@
 #include <core/camera.h>
 #include <core/fl_ecs.h>
 #include <core/resources.h>
+
+#include <editor/utils.h>
+#include <editor/hotreload.h>
 
 static int fl_widget_ctx_cmp(const void *a, const void *b, void *udata) {
     (void) udata;
@@ -578,17 +580,6 @@ void render_scene_settings(struct nk_context *p_ctx, FlScene *p_scene) {
     nk_end(p_ctx);
 }
 
-fl_empty_callback_t g_hotreload_callback = NULL;
-b8 g_request_hotreload = false;
-
-b8 fl_request_hotreload(void) {
-    return g_request_hotreload;
-}
-
-void fl_set_on_request_hot_reload_callback(fl_empty_callback_t callback) {
-    g_hotreload_callback = callback;
-}
-
 void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources resources, FlEditorCtx *p_editor_ctx) {
     int width, height;
     glfwGetWindowSize(p_win, &width, &height);
@@ -749,18 +740,8 @@ void render_main_menubar(struct nk_context *p_ctx, GLFWwindow *p_win, Resources 
         // TODO: add icon for hotreload
         if(nk_button_label(p_ctx, "Hotreload Editor")) {
             printf("[Editor] request for hotreload\n");
-            if(g_hotreload_callback == NULL)
-                printf("[Editor] hotreload failed, callback not set\n");
-            else {
-                printf("[Editor] hotreloading...\n");
-               
-                // TODO: perhaps combine these two together? this looks like a hack
-                g_hotreload_callback();
-                g_request_hotreload = true;
-                glfwSetWindowShouldClose(p_win, GLFW_TRUE);
-
-                printf("[Editor] hotreload callback called\n");
-            }
+            fl_request_hot_reload();
+            glfwSetWindowShouldClose(p_win, GLFW_TRUE);
         }
 
         nk_menubar_end(p_ctx);

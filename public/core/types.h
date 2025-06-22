@@ -9,11 +9,15 @@ typedef char* c_str;
 typedef const char* literal_str;
 
 #ifndef true
-    #define true 1
+    #define true 0x1
 #endif
 
 #ifndef false
-    #define false 0
+    #define false 0x0
+#endif
+
+#ifndef NULL
+    #define NULL 0x0
 #endif
 
 
