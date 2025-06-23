@@ -8,7 +8,10 @@ HIGH:
     - Make all widget contents all follow same rule (Label left, content right) [Maybe use different colors?]
     - Learn to use groups and categorize UI more
 - Create a [X]Console Widget, Log errors, outputs there
-- Make Editor Module to be hot reloadable, and run by a hot reloader main (Preparation for hot reloading)
+- hotreloading should preserve state, preferably the UI states, and glfw window
+    - glfw window preservation
+    - ui state preservation (things that are open are stayed open, their position and layout are remained unchanged)
+
 
 
 MID:
@@ -18,6 +21,8 @@ MID:
 - Customize keybinds (Allow setting keybind map[reference from other engines?])
 - Simple Shadow map implementation
 - Replace my fl_ecs instead to use flecs(which coincidentally have very similar name)
+- the UI should be saved in some kind of global editor config, this does mean it requires
+    one to write a crossplatform loading of config files (since each device has different file management techniques)
 
 
 LOW:
@@ -43,3 +48,4 @@ COMPLETE:
 - [X] Entities with mesh render should be able to render with a selection outline
 - [X] every entity should have a name component, can be displayed in scene hierarchy(Meta component?)
 - [X]Create a simplistic tutorial (text based with images)
+- [X] Make Editor Module to be hot reloadable, and run by a hot reloader main (Preparation for hot reloading)

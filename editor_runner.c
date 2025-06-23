@@ -5,17 +5,6 @@
 #include <core/utils.h>
 #include <editor/hotreload.h>
 
-// TODO: put all of these definitions in another separate header file instead
-typedef size_t (*fl_state_byte_size_func_t)(void);
-
-typedef void (*fl_set_on_request_hot_reload_callback_func_t)(fl_empty_callback_t callback);
-
-typedef int (*fl_init_func_t)(void *p_state);
-typedef int (*fl_run_func_t)(void *p_state);
-typedef int (*fl_close_func_t)(void *p_state);
-
-typedef int (*fl_reload_func_t)(void *p_state);
-
 void on_request_hot_reload(void) {
     printf("[Editor runner] hotreload requested\n");
 }
@@ -41,7 +30,6 @@ int load_editor_funcs(fl_dynlib_t *p_handle) {
     }
     // else
 
-    // TODO: use X macro list replace to shorten this code (also include if checks)
 #define REPL(FUNC_NAME) \
 FUNC_NAME##_func = (FUNC_NAME##_func_t)fl_load_func(*p_handle, #FUNC_NAME); \
     if(FUNC_NAME##_func == NULL) { \
@@ -55,10 +43,14 @@ FUNC_NAME##_func = (FUNC_NAME##_func_t)fl_load_func(*p_handle, #FUNC_NAME); \
     return 0;
 }
 
+
 int main(void) {
     fl_dynlib_t lib;
 
     void *p_hotreload_state = NULL;
+    size_t current_state_size = 0;
+
+    b8 hotreload = false;
 
     while(true) {
         if(load_editor_funcs(&lib) == -1) {
@@ -66,9 +58,16 @@ int main(void) {
             return -1;
         }
 
-        p_hotreload_state = realloc(p_hotreload_state, fl_state_byte_size_func());
+        if(current_state_size != fl_state_byte_size_func()) {
+            printf("[Editor Runner] State size changed from %zu to %zu\n", current_state_size, fl_state_byte_size_func());
+            current_state_size = fl_state_byte_size_func();
+            p_hotreload_state = realloc(p_hotreload_state, fl_state_byte_size_func());
+        }
 
-        fl_init_func(p_hotreload_state);
+        if(hotreload == true)
+            fl_reload_func(p_hotreload_state);
+        else
+            fl_init_func(p_hotreload_state);
 
         fl_set_on_request_hot_reload_callback_func(on_request_hot_reload);
 
@@ -81,6 +80,7 @@ int main(void) {
         }
         else if(exit_code == FL_HOTRELOAD_REQUEST) {
             printf("[Editor Runner] hotreload request detected, reloading...\n");
+            hotreload = true;
         }
         else {
             printf("[Editor Runner] unsupported exit code: %d, aborting...\n", exit_code);
@@ -88,8 +88,6 @@ int main(void) {
             break;
         }
 
-
-        fl_close_func(p_hotreload_state);
         fl_close_lib(lib);
     }
 

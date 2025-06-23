@@ -699,14 +699,14 @@ int fl_init(void *p_state) {
         &p_fl_state->ecs_ctx, sizeof(FlMeta)
     );
 
-    p_fl_state->comps = (FlEditorComponents){
+    p_fl_state->comps = (FlEditorComponents) {
         .transform   = TRANSFORM_ID,
         .mesh_render = MESH_RENDER_ID,
         .dir_light   = DIR_LIGHT_ID,
         .meta        = META_ID
     };
 
-    p_fl_state->scene = (FlScene){
+    p_fl_state->scene = (FlScene) {
         .clear_color = {0.0f, 0.0f, 0.0f, 1.0f},
         .ambient_color = {0.88f, 0.69f, 0.61f},
         .p_ecs_ctx = &p_fl_state->ecs_ctx,
