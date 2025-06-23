@@ -15,6 +15,7 @@ void on_request_hot_reload(void) {
     REPL(fl_close) \
     REPL(fl_reload) \
     REPL(fl_state_byte_size) \
+    REPL(fl_hotreload_close) \
     REPL(fl_set_on_request_hot_reload_callback)
 
 #define REPL(FUNC_NAME) \
@@ -64,26 +65,35 @@ int main(void) {
             p_hotreload_state = realloc(p_hotreload_state, fl_state_byte_size_func());
         }
 
-        if(hotreload == true)
+        if(hotreload == true) {
+            printf("[Editor Runner] fl_reload_func called\n");
             fl_reload_func(p_hotreload_state);
-        else
+        }
+        else {
+            printf("[Editor Runner] fl_init_func called\n");
             fl_init_func(p_hotreload_state);
+        }
 
         fl_set_on_request_hot_reload_callback_func(on_request_hot_reload);
 
+        printf("[Editor Runner] fl_run_func called\n");
         int exit_code = fl_run_func(p_hotreload_state);
 
         if(exit_code == FL_EXIT) {
             printf("[Editor Runner] exiting...\n");
+            printf("[Editor Runner] fl_close_func called\n");
             fl_close_func(p_hotreload_state);
             break;
         }
         else if(exit_code == FL_HOTRELOAD_REQUEST) {
             printf("[Editor Runner] hotreload request detected, reloading...\n");
+            printf("[Editor Runner] fl_hotreload_close_func called\n");
+            fl_hotreload_close_func(p_hotreload_state);
             hotreload = true;
         }
         else {
             printf("[Editor Runner] unsupported exit code: %d, aborting...\n", exit_code);
+            printf("[Editor Runner] fl_close_func called\n");
             fl_close_func(p_hotreload_state);
             break;
         }

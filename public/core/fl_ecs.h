@@ -47,7 +47,12 @@ b8 fl_ecs_iter(FlEcsCtx *p_ctx, size_t *p_iter, FlEntityId *p_entity);
 b8 fl_ecs_query(FlEcsCtx *p_ctx, size_t *p_iter, FlEntityId *p_entity, FlComponent *components, size_t components_size);
 
 FlEntityId fl_ecs_entity_add(FlEcsCtx *p_ctx);
+
 void fl_ecs_entity_free(FlEcsCtx *p_ctx, FlEntityId entity);
+
+// clears all entities
+void fl_ecs_entity_free_all(FlEcsCtx *p_ctx);
+
 b8 fl_ecs_entity_valid(FlEcsCtx *p_ctx, FlEntityId entity);
 
 // gets the raw pointer of the entity's associated data

@@ -22,6 +22,7 @@
 typedef struct FlWidgetCtx_t {
     const char *id;
     GLuint *p_icon_tex;
+    const char *icon_res_id;
     uint16_t type;
     b8 is_open;
 } FlWidgetCtx;

@@ -49,6 +49,7 @@ const char* editor_ctx_register_widget(FlEditorCtx *p_ctx, FlWidgetCtx *p_widget
 }
 
 // TODO: make these const FlEditorCtx *p_ctx instead to be consistent with other piece of code
+// also rename all the ctx into p_ctx
 int editor_ctx_iter(FlEditorCtx ctx, size_t *p_iter, FlWidgetCtx **pp_widget_ctx) {
     return hashmap_iter(ctx.widgets, p_iter, (void**)pp_widget_ctx);
 }
@@ -58,7 +59,7 @@ const FlWidgetCtx* editor_ctx_get_widget(const FlEditorCtx *ctx, const char *ide
 }
 
 b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_open) {
-    const FlWidgetCtx *p_widget = hashmap_get(ctx.widgets, &(FlWidgetCtx){ .id = identifier });
+    const FlWidgetCtx *p_widget = editor_ctx_get_widget(&ctx, identifier);
 
     if(!p_widget)
         return false;
@@ -71,10 +72,7 @@ b8 editor_ctx_set_widget_open(FlEditorCtx ctx, const char *identifier, b8 is_ope
 }
 
 b8 editor_ctx_is_widget_open(const FlEditorCtx *p_ctx, const char *identifier) {
-    const FlWidgetCtx *scene_widget = hashmap_get(
-        p_ctx->widgets,
-        &(FlWidgetCtx){ .id = identifier }
-    );
+    const FlWidgetCtx *scene_widget = editor_ctx_get_widget(p_ctx, identifier);
 
     assert(scene_widget && "ERROR: scene widget is null, cannot check if the widget is open");
     

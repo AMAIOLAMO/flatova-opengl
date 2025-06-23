@@ -249,6 +249,14 @@ void fl_ecs_entity_free(FlEcsCtx *p_ctx, FlEntityId entity) {
     p_ctx->entity_count -= 1;
 }
 
+void fl_ecs_entity_free_all(FlEcsCtx *p_ctx) {
+    hashmap_clear(p_ctx->id2idx_map, false);
+    p_ctx->entity_count = 0;
+    // TODO?: unsure whether or not this should be reset, but for now this does not
+    // affect anything
+    p_ctx->g_entity_id = 0;
+}
+
 void* fl_ecs_get_entity_component_data(FlEcsCtx *p_ctx, FlEntityId entity_id, FlComponent component) {
     b8 *data_list = (b8*)p_ctx->data_lists[component];
 

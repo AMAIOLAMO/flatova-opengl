@@ -537,13 +537,14 @@ void print_working_directory(FILE *file) {
 #endif
 }
 
-void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources resources) {
+void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids) {
     p_ids->scene_hierarchy = editor_ctx_register_widget(
         p_ctx,
         &(FlWidgetCtx){
             .id = "scene hierarchy",
             .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/cube")
+            .icon_res_id = "textures/cube",
+            // .p_icon_tex = resources_find(resources, "textures/cube")
         }
     );
 
@@ -552,7 +553,8 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "camera properties",
             .type = FL_WIDGET_SETTINGS,
-            .p_icon_tex = resources_find(resources, "textures/camera")
+            .icon_res_id = "textures/camera",
+            // .p_icon_tex = resources_find(resources, "")
         }
     );
     p_ids->res_manager = editor_ctx_register_widget(
@@ -560,7 +562,8 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "resource manager",
             .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/magnify")
+            .icon_res_id = "textures/magnify",
+            // .p_icon_tex = resources_find(resources, "")
         }
     );
     p_ids->scene_settings = editor_ctx_register_widget(
@@ -568,7 +571,8 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "scene settings",
             .type = FL_WIDGET_SETTINGS,
-            .p_icon_tex = resources_find(resources, "textures/cog")
+            .icon_res_id = "textures/cog",
+            // .p_icon_tex = resources_find(resources, "")
         }
     );
     p_ids->file_browser = editor_ctx_register_widget(
@@ -576,7 +580,8 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "file browser",
             .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/folder")
+            .icon_res_id = "textures/folder",
+            // .p_icon_tex = resources_find(resources, "")
         }
     );
     p_ids->entity_inspector = editor_ctx_register_widget(
@@ -584,7 +589,8 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "entity inspector",
             .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/eye")
+            .icon_res_id = "textures/eye",
+            // .p_icon_tex = resources_find(resources, "")
         }
     );
     p_ids->console = editor_ctx_register_widget(
@@ -592,7 +598,8 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "console",
             .type = FL_WIDGET_COMMON,
-            .p_icon_tex = resources_find(resources, "textures/question")
+            .icon_res_id = "textures/question",
+            // .p_icon_tex = resources_find(resources, "")
         }
     );
 
@@ -601,8 +608,9 @@ void register_widgets(FlEditorCtx *p_ctx, FlEditorWidgetIds *p_ids, Resources re
         &(FlWidgetCtx){
             .id = "tutorial",
             .type = FL_WIDGET_NO_CATEGORY,
-            .p_icon_tex = resources_find(resources, "textures/star"),
-            .is_open = true
+            .icon_res_id = "textures/star",
+            // .p_icon_tex = resources_find(resources, ""),
+            .is_open = true // TODO: should store somewhere, so that we can disable auto open of the tutorial
         }
     );
 }
@@ -767,16 +775,13 @@ int fl_init(void *p_state) {
 
     p_fl_state->widget_ids = (FlEditorWidgetIds){0};
 
-    register_widgets(&p_fl_state->editor_ctx, &p_fl_state->widget_ids, p_fl_state->resources);
+    register_widgets(&p_fl_state->editor_ctx, &p_fl_state->widget_ids);
 
-    return 0;
-}
-
-int fl_reload(void *p_state) {
-    FlHotreloadState *p_fl_state = p_state;
-    (void) p_fl_state;
-
-    // for now, does not do anything when reload
+    // load all icons
+    size_t iter = 0;
+    FlWidgetCtx *p_widget_ctx = NULL;
+    while(editor_ctx_iter(p_fl_state->editor_ctx, &iter, &p_widget_ctx))
+        p_widget_ctx->p_icon_tex = resources_find(p_fl_state->resources, p_widget_ctx->icon_res_id);
 
     return 0;
 }
@@ -798,6 +803,90 @@ int fl_close(void *p_state) {
     NFD_Quit();
 
     printf("[Editor] Clean up complete.\n");
+
+    return 0;
+}
+
+
+int fl_reload(void *p_state) {
+    FlHotreloadState *p_fl_state = p_state;
+
+    print_working_directory(stdout);
+
+    /// ========== INITIALIZATION ========== ///
+    p_fl_state->resources = resources_create();
+
+    p_fl_state->nk_glfw = (struct nk_glfw){0};
+
+    if(fl_glfw_init(&p_fl_state->editor_ctx.p_win) == false) {
+        printf("Error: Failed to initialize GLFW! aborting...\n");
+        return -1;
+    }
+
+    p_fl_state->editor_ctx.p_nk_ctx = nk_glfw3_init(&p_fl_state->nk_glfw, p_fl_state->editor_ctx.p_win, NK_GLFW3_INSTALL_CALLBACKS);
+    {
+        struct nk_font_atlas *nk_atlas;
+
+        const int DEFAULT_FONT_SIZE = 18;
+        const int DPI_SCALED_FONT_SIZE = g_scaling_x(DEFAULT_FONT_SIZE);
+
+        nk_glfw3_font_stash_begin(&p_fl_state->nk_glfw, &nk_atlas);
+        struct nk_font *roboto_regular = nk_font_atlas_add_from_file(
+            nk_atlas,
+            "vendor/default_fonts/Roboto-Regular.ttf", DPI_SCALED_FONT_SIZE, 0
+        );
+        nk_glfw3_font_stash_end(&p_fl_state->nk_glfw);
+        nk_style_set_font(p_fl_state->editor_ctx.p_nk_ctx, &roboto_regular->handle);
+
+        resources_store(
+            p_fl_state->resources,
+            &(Resource) {
+                .id = "fonts/roboto_regular",
+                .p_raw = roboto_regular,
+                .type = FL_RES_FONT
+            }
+        );
+    }
+
+    // loop through contents in vendor and load all the resources
+    const size_t DIR_DEPTH = 5;
+    resources_load_dir_recursive(p_fl_state->resources, DIR_DEPTH, "./vendor");
+
+    // SETUP WINDOW ICON
+    glfw_setup_flatova_icon(p_fl_state->editor_ctx.p_win);
+
+    // create buffers
+    p_fl_state->vert_pipeline = vertex_gen_buffer_arrays();
+
+    // reload all icons for editor widgets
+    size_t iter = 0;
+    FlWidgetCtx *p_widget_ctx = NULL;
+    while(editor_ctx_iter(p_fl_state->editor_ctx, &iter, &p_widget_ctx))
+        p_widget_ctx->p_icon_tex = resources_find(p_fl_state->resources, p_widget_ctx->icon_res_id);
+    
+    return 0;
+
+    return 0;
+}
+
+int fl_hotreload_close(void *p_state) {
+    FlHotreloadState *p_fl_state = p_state;
+
+    printf("[Editor] hotreload Cleaning up...\n");
+
+    /// ========== CLEAN UP ========== ///
+    // editor_ctx_free_widgets(p_fl_state->editor_ctx.widgets);
+    // fl_ecs_ctx_free(&p_fl_state->ecs_ctx);
+    
+    // cleans all entities when hotreloading
+    fl_ecs_entity_free_all(&p_fl_state->ecs_ctx);
+
+    resources_free(p_fl_state->resources);
+
+    nk_glfw3_shutdown(&p_fl_state->nk_glfw);
+    glfwTerminate();
+
+    printf("[Editor] Hotreload cleanup up complete.\n");
 
     return 0;
 }
